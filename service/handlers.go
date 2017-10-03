@@ -73,23 +73,8 @@ func Handlers(servicesRouter *mux.Router, wh WriterHandler, rh ReaderHandler, re
 		"DELETE": http.HandlerFunc(wh.HandleDelete),
 	}
 
-	ch := handlers.MethodHandler{
-		"GET": http.HandlerFunc(rh.HandleCount),
-	}
-
-	ih := handlers.MethodHandler{
-		"GET": http.HandlerFunc(rh.HandleIds),
-	}
-
-	ah := handlers.MethodHandler{
-		"GET": http.HandlerFunc(rh.HandleGetAll),
-	}
-
 	if resourcePath != "" {
 		resourcePath = fmt.Sprintf("/%s", resourcePath)
 	}
 	servicesRouter.Handle(fmt.Sprintf("%s%s", resourcePath, "/{uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}"), mh)
-	servicesRouter.Handle(fmt.Sprintf("%s%s", resourcePath, "/__count"), ch)
-	servicesRouter.Handle(fmt.Sprintf("%s%s", resourcePath, "/__ids"), ih)
-	servicesRouter.Handle(fmt.Sprintf("%s%s", resourcePath, "/"), ah)
 }

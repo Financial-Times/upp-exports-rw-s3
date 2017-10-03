@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	ExpectedContentType  = "application/json"
+	ExpectedContentType = "application/json"
 	ExpectedResourcePath = "bob"
 )
 
@@ -211,48 +211,6 @@ func TestReadHandlerForErrorReadingBody(t *testing.T) {
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c"), 502, "{\"message\":\"Error while communicating to other service\"}", ExpectedContentType)
 }
 
-func TestReadHandlerCountOK(t *testing.T) {
-	r := mux.NewRouter()
-	mr := &mockReader{count: 1337}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/__count"), 200, "1337", ExpectedContentType)
-}
-
-func TestReadHandlerCountFailsReturnsServiceUnavailable(t *testing.T) {
-	r := mux.NewRouter()
-	mr := &mockReader{returnError: errors.New("Some error from reader though")}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/__count"), 503, "{\"message\":\"Service currently unavailable\"}", ExpectedContentType)
-}
-
-func TestReaderHandlerIdsOK(t *testing.T) {
-	r := mux.NewRouter()
-	mr := &mockReader{payload: "PAYLOAD"}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/__ids"), 200, "PAYLOAD", "application/octet-stream")
-}
-
-func TestReaderHandlerIdsFailsReturnsServiceUnavailable(t *testing.T) {
-	r := mux.NewRouter()
-	mr := &mockReader{returnError: errors.New("Some error from reader though")}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/__ids"), 503, "{\"message\":\"Service currently unavailable\"}", ExpectedContentType)
-}
-
-func TestHandleGetAllOK(t *testing.T) {
-	r := mux.NewRouter()
-	mr := &mockReader{payload: "PAYLOAD"}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/"), 200, "PAYLOAD", "application/octet-stream")
-}
-
-func TestHandleGetAllFailsReturnsServiceUnavailable(t *testing.T) {
-	r := mux.NewRouter()
-	mr := &mockReader{returnError: errors.New("Some error from reader though")}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/"), 503, "{\"message\":\"Service currently unavailable\"}", ExpectedContentType)
-}
-
 func assertRequestAndResponseFromRouter(t testing.TB, r *mux.Router, url string, expectedStatus int, expectedBody string, expectedContentType string) *httptest.ResponseRecorder {
 
 	rec := httptest.NewRecorder()
@@ -327,7 +285,10 @@ type mockReader struct {
 	rc          io.ReadCloser
 	returnError error
 	returnCT    string
-	count       int64
+}
+
+func (r *mockReader)GetPublishDateForUUID(uuid string) (string, bool, error) {
+	return "", true, nil
 }
 
 func (r *mockReader) Get(uuid, publishedDate string) (bool, io.ReadCloser, *string, error) {
@@ -355,12 +316,6 @@ func (r *mockReader) Head(uuid, publishedDate string) (bool, error) {
 	return r.found, r.returnError
 }
 
-func (r *mockReader) Count() (int64, error) {
-	r.Lock()
-	defer r.Unlock()
-	return r.count, r.returnError
-}
-
 func (r *mockReader) processPipe() (io.PipeReader, error) {
 	pv, pw := io.Pipe()
 	go func(p *io.PipeWriter) {
@@ -370,14 +325,6 @@ func (r *mockReader) processPipe() (io.PipeReader, error) {
 		p.Close()
 	}(pw)
 	return *pv, r.returnError
-}
-
-func (r *mockReader) GetAll() (io.PipeReader, error) {
-	return r.processPipe()
-}
-
-func (r *mockReader) Ids() (io.PipeReader, error) {
-	return r.processPipe()
 }
 
 type mockWriter struct {

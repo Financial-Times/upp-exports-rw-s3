@@ -1,11 +1,8 @@
 package service
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	transactionid "github.com/Financial-Times/transactionid-utils-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
@@ -14,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
-	"math/rand"
 	"net/http/httptest"
 	"strconv"
 	"strings"
@@ -23,9 +19,9 @@ import (
 )
 
 const (
-	expectedUUID          = "123e4567-e89b-12d3-a456-426655440000"
-	expectedMessageID     = "7654e321-b98e-3d12-654a-000042665544"
-	expectedContentType   = "content/type"
+	expectedUUID = "123e4567-e89b-12d3-a456-426655440000"
+	expectedMessageID = "7654e321-b98e-3d12-654a-000042665544"
+	expectedContentType = "content/type"
 	expectedTransactionId = "tid_0123456789"
 )
 
@@ -151,7 +147,7 @@ func TestWritingToS3WithTransactionID(t *testing.T) {
 
 	w, s := getWriter()
 
-	err := w.Write(expectedUUID, &[]byte{}, "", mw.tid)
+	err := w.Write(expectedUUID, "", &[]byte{}, "", mw.tid)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedTransactionId, *s.putObjectInput.Metadata[transactionid.TransactionIDKey])
@@ -170,7 +166,7 @@ func TestWritingToS3WithNewTransactionID(t *testing.T) {
 
 	w, s := getWriter()
 
-	err := w.Write(expectedUUID, &[]byte{}, "", mw.tid)
+	err := w.Write(expectedUUID, "", &[]byte{}, "", mw.tid)
 
 	assert.NoError(t, err)
 	assert.Equal(t, mw.tid, *s.putObjectInput.Metadata[transactionid.TransactionIDKey])
@@ -180,7 +176,7 @@ func TestWritingToS3WithNoContentType(t *testing.T) {
 	w, s := getWriter()
 	p := []byte("PAYLOAD")
 	var err error
-	err = w.Write(expectedUUID, &p, "", expectedTransactionId)
+	err = w.Write(expectedUUID, "", &p, "", expectedTransactionId)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, s.putObjectInput)
 	assert.Equal(t, "test/prefix/123e4567/e89b/12d3/a456/426655440000", *s.putObjectInput.Key)
@@ -200,7 +196,7 @@ func TestFailingToWriteToS3(t *testing.T) {
 	p := []byte("PAYLOAD")
 	ct := expectedContentType
 	s.s3error = errors.New("S3 error")
-	err := w.Write(expectedUUID,"", &p, ct, expectedTransactionId)
+	err := w.Write(expectedUUID, "", &p, ct, expectedTransactionId)
 	assert.Error(t, err)
 }
 
@@ -208,7 +204,7 @@ func TestGetFromS3(t *testing.T) {
 	r, s := getReader()
 	s.payload = "PAYLOAD"
 	s.ct = expectedContentType
-	b, i, ct, err := r.Get(expectedUUID,"")
+	b, i, ct, err := r.Get(expectedUUID, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, s.getObjectInput)
 	assert.Equal(t, "test/prefix/123e4567/e89b/12d3/a456/426655440000", *s.getObjectInput.Key)
@@ -222,7 +218,7 @@ func TestGetFromS3NoPrefix(t *testing.T) {
 	r, s := getReaderNoPrefix()
 	s.payload = "PAYLOAD"
 	s.ct = expectedContentType
-	b, i, ct, err := r.Get(expectedUUID,"")
+	b, i, ct, err := r.Get(expectedUUID, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, s.getObjectInput)
 	assert.Equal(t, "/123e4567/e89b/12d3/a456/426655440000", *s.getObjectInput.Key)
@@ -237,7 +233,7 @@ func TestGetFromS3WhenNoSuchKey(t *testing.T) {
 	r, s := getReader()
 	s.s3error = awserr.New("NoSuchKey", "message", errors.New("Some error"))
 	s.payload = "PAYLOAD"
-	b, i, ct, err := r.Get(expectedUUID,"")
+	b, i, ct, err := r.Get(expectedUUID, "")
 	assert.NoError(t, err)
 	assert.False(t, b)
 	assert.Nil(t, i)
@@ -248,7 +244,7 @@ func TestGetFromS3WithUnknownError(t *testing.T) {
 	r, s := getReader()
 	s.s3error = awserr.New("I don't know", "message", errors.New("Some error"))
 	s.payload = "ERROR PAYLOAD"
-	b, i, ct, err := r.Get(expectedUUID,"")
+	b, i, ct, err := r.Get(expectedUUID, "")
 	assert.Error(t, err)
 	assert.Equal(t, s.s3error, err)
 	assert.False(t, b)
@@ -260,25 +256,12 @@ func TestGetFromS3WithNoneAWSError(t *testing.T) {
 	r, s := getReader()
 	s.s3error = errors.New("Some error")
 	s.payload = "ERROR PAYLOAD"
-	b, i, ct, err := r.Get(expectedUUID,"")
+	b, i, ct, err := r.Get(expectedUUID, "")
 	assert.Error(t, err)
 	assert.Equal(t, s.s3error, err)
 	assert.False(t, b)
 	assert.Nil(t, i)
 	assert.Nil(t, ct)
-}
-
-func TestGetCountFromS3(t *testing.T) {
-	r, s := getReader()
-	lo1 := generateKeys(100, false)
-	lo2 := generateKeys(1, false)
-	s.listObjectsV2Outputs = []*s3.ListObjectsV2Output{
-		&lo1,
-		&lo2,
-	}
-	i, err := r.Count()
-	assert.NoError(t, err)
-	assert.Equal(t, int64(101), i)
 }
 
 func generateKeys(count int, addIgnoredKeys bool) s3.ListObjectsV2Output {
@@ -293,7 +276,7 @@ func generateKeys(count int, addIgnoredKeys bool) s3.ListObjectsV2Output {
 
 	if addIgnoredKeys {
 		keys[count] = &s3.Object{Key: aws.String(fmt.Sprintf("test/prefix/123e4567/e89b/12d3/a456/%012d/", count))} // ignored as ends with '/'
-		keys[count+1] = &s3.Object{Key: aws.String(fmt.Sprintf("__gtg %012d/", count+1))}                           // ignored as starts with '__'
+		keys[count + 1] = &s3.Object{Key: aws.String(fmt.Sprintf("__gtg %012d/", count + 1))}                           // ignored as starts with '__'
 		count++
 	}
 
@@ -301,246 +284,6 @@ func generateKeys(count int, addIgnoredKeys bool) s3.ListObjectsV2Output {
 		KeyCount: aws.Int64(int64(fc)),
 		Contents: keys,
 	}
-}
-
-func TestGetCountFromS3WithoutPrefix(t *testing.T) {
-	r, s := getReaderNoPrefix()
-	lo1 := generateKeys(100, false)
-	lo2 := generateKeys(1, false)
-	s.listObjectsV2Outputs = []*s3.ListObjectsV2Output{
-		&lo1,
-		&lo2,
-	}
-	i, err := r.Count()
-	assert.NoError(t, err)
-	assert.Equal(t, int64(101), i)
-	assert.NotEmpty(t, s.listObjectsV2Input)
-	assert.Nil(t, s.listObjectsV2Input[0].Prefix)
-}
-
-func TestGetCountFromS3Errors(t *testing.T) {
-	r, s := getReader()
-	s.s3error = errors.New("Some error")
-	_, err := r.Count()
-	assert.Error(t, err)
-	assert.Equal(t, s.s3error, err)
-}
-
-func BenchmarkS3Reader_Count(b *testing.B) {
-	for n := 0; n < b.N; n++ {
-		b.StopTimer()
-		r, s := getReaderNoPrefix()
-		t := 1000
-		for i := 0; i < t; i++ {
-			var lo s3.ListObjectsV2Output
-			lo = generateKeys(t, true)
-			s.listObjectsV2Outputs = append(s.listObjectsV2Outputs, &lo)
-		}
-		b.StartTimer()
-		i, err := r.Count()
-		assert.NoError(b, err)
-		assert.Equal(b, int64(t*t), i)
-	}
-}
-func BenchmarkS3QProcessor_ProcessMsg(b *testing.B) {
-	m := getLargeKMsg()
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		mw := &mockWriter{}
-		qp := NewQProcessor(mw)
-
-		qp.ProcessMsg(m)
-
-		assert.Equal(b, expectedUUID, mw.uuid)
-		assert.Equal(b, expectedTransactionId, mw.tid)
-		assert.Equal(b, expectedContentType, mw.ct)
-
-	}
-}
-
-func getLargeKMsg() consumer.Message {
-	buf := new(bytes.Buffer)
-	je := json.NewEncoder(buf)
-	bd := make([]byte, 16777216)
-	rand.Read(bd)
-	c := struct {
-		Id   string `json:"uuid"`
-		Body []byte `json:"body"`
-	}{
-		Id:   expectedUUID,
-		Body: bd,
-	}
-	err := je.Encode(&c)
-	if err != nil {
-		log.Panicf("err encoding, %v", err.Error())
-	}
-
-	h := map[string]string{
-		"Message-Id":   expectedMessageID,
-		"X-Request-Id": expectedTransactionId,
-		"Content-Type": expectedContentType,
-	}
-	return consumer.Message{
-		Headers: h,
-		Body:    buf.String(),
-	}
-}
-
-func TestGetIdsFromS3(t *testing.T) {
-	r, s := getReader()
-	s.listObjectsV2Outputs = []*s3.ListObjectsV2Output{
-		{KeyCount: aws.Int64(1)},
-		{
-			KeyCount: aws.Int64(5),
-			Contents: []*s3.Object{
-				{Key: aws.String("test/prefix/123e4567/e89b/12d3/a456/426655440001")},
-				{Key: aws.String("test/prefix/123e4567/e89b/12d3/a456/426655440002")},
-				{Key: aws.String("test/prefix/123e4567/e89b/12d3/a456/426655440003")},
-				{Key: aws.String("test/prefix/123e4567/e89b/12d3/a456/426655440004")},
-				{Key: aws.String("test/prefix/123e4567/e89b/12d3/a456/426655440005")},
-			},
-		},
-		{
-			KeyCount: aws.Int64(5),
-			Contents: []*s3.Object{
-				{Key: aws.String("test/prefix/123e4567/e89b/12d3/a456/426655440006")},
-				{Key: aws.String("test/prefix/123e4567/e89b/12d3/a456/426655440007")},
-				{Key: aws.String("test/prefix/123e4567/e89b/12d3/a456/426655440008")},
-				{Key: aws.String("test/prefix/123e4567/e89b/12d3/a456/426655440009")},
-				{Key: aws.String("test/prefix/123e4567/e89b/12d3/a456/426655440010")},
-			},
-		},
-	}
-	p, err := r.Ids()
-	assert.NoError(t, err)
-	payload, err := ioutil.ReadAll(&p)
-	assert.NoError(t, err)
-	assert.Equal(t, `{"ID":"123e4567-e89b-12d3-a456-426655440001"}
-{"ID":"123e4567-e89b-12d3-a456-426655440002"}
-{"ID":"123e4567-e89b-12d3-a456-426655440003"}
-{"ID":"123e4567-e89b-12d3-a456-426655440004"}
-{"ID":"123e4567-e89b-12d3-a456-426655440005"}
-{"ID":"123e4567-e89b-12d3-a456-426655440006"}
-{"ID":"123e4567-e89b-12d3-a456-426655440007"}
-{"ID":"123e4567-e89b-12d3-a456-426655440008"}
-{"ID":"123e4567-e89b-12d3-a456-426655440009"}
-{"ID":"123e4567-e89b-12d3-a456-426655440010"}
-`, string(payload[:]))
-}
-
-func TestGetIdsFromS3NoPrefix(t *testing.T) {
-	r, s := getReaderNoPrefix()
-	s.listObjectsV2Outputs = []*s3.ListObjectsV2Output{
-		{KeyCount: aws.Int64(1)},
-		{
-			KeyCount: aws.Int64(5),
-			Contents: []*s3.Object{
-				{Key: aws.String("123e4567/e89b/12d3/a456/426655440001")},
-				{Key: aws.String("123e4567/e89b/12d3/a456/426655440002")},
-				{Key: aws.String("123e4567/e89b/12d3/a456/426655440003")},
-				{Key: aws.String("123e4567/e89b/12d3/a456/426655440004")},
-				{Key: aws.String("123e4567/e89b/12d3/a456/426655440005")},
-			},
-		},
-		{
-			KeyCount: aws.Int64(5),
-			Contents: []*s3.Object{
-				{Key: aws.String("123e4567/e89b/12d3/a456/426655440006")},
-				{Key: aws.String("123e4567/e89b/12d3/a456/426655440007")},
-				{Key: aws.String("123e4567/e89b/12d3/a456/426655440008")},
-				{Key: aws.String("123e4567/e89b/12d3/a456/426655440009")},
-				{Key: aws.String("123e4567/e89b/12d3/a456/426655440010")},
-			},
-		},
-	}
-	p, err := r.Ids()
-	assert.NoError(t, err)
-	payload, err := ioutil.ReadAll(&p)
-	assert.NoError(t, err)
-	assert.Equal(t, `{"ID":"123e4567-e89b-12d3-a456-426655440001"}
-{"ID":"123e4567-e89b-12d3-a456-426655440002"}
-{"ID":"123e4567-e89b-12d3-a456-426655440003"}
-{"ID":"123e4567-e89b-12d3-a456-426655440004"}
-{"ID":"123e4567-e89b-12d3-a456-426655440005"}
-{"ID":"123e4567-e89b-12d3-a456-426655440006"}
-{"ID":"123e4567-e89b-12d3-a456-426655440007"}
-{"ID":"123e4567-e89b-12d3-a456-426655440008"}
-{"ID":"123e4567-e89b-12d3-a456-426655440009"}
-{"ID":"123e4567-e89b-12d3-a456-426655440010"}
-`, string(payload[:]))
-}
-
-func TestGetIdsFromS3Fails(t *testing.T) {
-	r, s := getReader()
-	s.s3error = errors.New("Some error")
-	_, err := r.Ids()
-	assert.Error(t, err)
-	assert.Equal(t, s.s3error, err)
-}
-
-func TestReaderHandler_HandleGetAllOK(t *testing.T) {
-	r, s := getReader()
-	s.payload = "PAYLOAD"
-
-	s.listObjectsV2Outputs = []*s3.ListObjectsV2Output{
-		{KeyCount: aws.Int64(1)},
-		{
-			KeyCount: aws.Int64(5),
-			Contents: []*s3.Object{
-				{Key: aws.String("test/prefix/UUID-1")},
-				{Key: aws.String("test/prefix/UUID-2")},
-				{Key: aws.String("test/prefix/UUID-3")},
-				{Key: aws.String("test/prefix/UUID-4")},
-				{Key: aws.String("__gtg")}, // ignored as starts with '__'
-				{Key: aws.String("test/prefix/UUID-5")},
-			},
-		},
-		{
-			KeyCount: aws.Int64(5),
-			Contents: []*s3.Object{
-				{Key: aws.String("test/prefix/UUID-6")},
-				{Key: aws.String("test/prefix/UUID-7")},
-				{Key: aws.String("test/prefix/UUID-8")},
-				{Key: aws.String("test/prefix/UUID-9")},
-				{Key: aws.String("test/prefix/folder/")}, // ignored as ends with '/'
-				{Key: aws.String("test/prefix/UUID-10")},
-			},
-		},
-	}
-	p, err := r.GetAll()
-	assert.NoError(t, err)
-	payload, err := ioutil.ReadAll(&p)
-	assert.NoError(t, err)
-	assert.Equal(t, `PAYLOAD0
-PAYLOAD1
-PAYLOAD2
-PAYLOAD3
-PAYLOAD4
-PAYLOAD5
-PAYLOAD6
-PAYLOAD7
-PAYLOAD8
-PAYLOAD9
-`, string(payload[:]))
-
-}
-
-func TestReaderHandler_HandleGetAllOKWithLotsOfWorkers(t *testing.T) {
-	r, s := getReaderWithMultipleWorkers()
-	s.payload = "PAYLOAD"
-	s.listObjectsV2Outputs = []*s3.ListObjectsV2Output{
-		{KeyCount: aws.Int64(1)},
-		getListObjectsV2Output(5, 0),
-		getListObjectsV2Output(5, 5),
-		getListObjectsV2Output(5, 15),
-		getListObjectsV2Output(5, 20),
-		getListObjectsV2Output(5, 25),
-	}
-	p, err := r.GetAll()
-	assert.NoError(t, err)
-	payload, err := ioutil.ReadAll(&p)
-	assert.NoError(t, err)
-	assert.Equal(t, 25, strings.Count(string(payload[:]), "PAYLOAD"))
 }
 
 func TestS3Reader_Head(t *testing.T) {
@@ -568,25 +311,6 @@ func TestS3Reader_Head(t *testing.T) {
 		assert.False(t, found)
 		assert.Equal(t, s.s3error, err)
 	})
-}
-
-func getListObjectsV2Output(keyCount int64, start int) *s3.ListObjectsV2Output {
-	contents := []*s3.Object{}
-	for i := start; i < start+int(keyCount); i++ {
-		contents = append(contents, &s3.Object{Key: aws.String("test/prefix/UUID-" + strconv.Itoa(i))})
-	}
-	return &s3.ListObjectsV2Output{
-		KeyCount: aws.Int64(keyCount),
-		Contents: contents,
-	}
-}
-
-func TestS3Reader_GetAllFails(t *testing.T) {
-	r, s := getReader()
-	s.s3error = errors.New("Some error")
-	_, err := r.GetAll()
-	assert.Error(t, err)
-	assert.Equal(t, s.s3error, err)
 }
 
 func TestDelete(t *testing.T) {
@@ -618,85 +342,9 @@ func TestDelete(t *testing.T) {
 	})
 }
 
-func TestS3QProcessor_ProcessMsgCorrectly(t *testing.T) {
-	testCases := []struct {
-		uuid  string
-		ct    string
-		wUuid string
-		wCt   string
-		tid   string
-	}{
-		{expectedUUID, expectedContentType, expectedUUID, expectedContentType, expectedTransactionId},
-		{expectedUUID, "", expectedUUID, "", expectedTransactionId},
-		{"", expectedContentType, expectedMessageID, expectedContentType, expectedTransactionId},
-		{expectedUUID, expectedContentType, expectedUUID, expectedContentType, ""},
-	}
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("Msg with [uuid=%v, ct=%v], expect [uuid=%v, ct=%v]", tc.uuid, tc.ct, tc.wUuid, tc.wCt), func(t *testing.T) {
-			mw := &mockWriter{}
-			qp := NewQProcessor(mw)
-			m := generateConsumerMessage(tc.ct, tc.uuid)
-
-			qp.ProcessMsg(m)
-
-			assert.Equal(t, tc.wUuid, mw.uuid)
-			assert.Equal(t, tc.wCt, mw.ct)
-			assert.Equal(t, m.Body, mw.payload)
-			assert.NotEmpty(t, mw.tid)
-		})
-	}
-}
-
-func TestS3QProcessor_ProcessMsgNoneJsonShouldNotCallWriter(t *testing.T) {
-	mw := &mockWriter{}
-	qp := NewQProcessor(mw)
-	m := generateConsumerMessage(expectedContentType, expectedUUID)
-	m.Body = "none json data is here"
-	qp.ProcessMsg(m)
-	assert.False(t, mw.writeCalled)
-}
-
-func TestS3QProcessor_ProcessMsgDealsWithErrorsFromWriter(t *testing.T) {
-	mw := &mockWriter{}
-	mw.returnError = errors.New("Some error")
-	qp := NewQProcessor(mw)
-	m := generateConsumerMessage(expectedContentType, expectedUUID)
-	qp.ProcessMsg(m)
-	assert.True(t, mw.writeCalled)
-	assert.Equal(t, expectedUUID, mw.uuid)
-	assert.Equal(t, expectedTransactionId, mw.tid)
-	assert.Equal(t, expectedContentType, mw.ct)
-
-	assert.Equal(t, m.Body, mw.payload)
-}
-
-func generateConsumerMessage(ct string, cid string) consumer.Message {
-	h := map[string]string{
-		"Message-Id":   expectedMessageID,
-		"X-Request-Id": expectedTransactionId,
-	}
-	if ct != "" {
-		h["Content-Type"] = ct
-	}
-
-	return consumer.Message{
-		Body: fmt.Sprintf(`{
-		"uuid": "%v",
-		"random":"one",
-		"data": "e1wic29tZVwiOlwiZGF0YVwifQ=="
-		}`, cid),
-		Headers: h,
-	}
-}
-
 func getReader() (Reader, *mockS3Client) {
 	s := &mockS3Client{}
 	return NewS3Reader(s, "testBucket", "test/prefix", 1), s
-}
-
-func getReaderWithMultipleWorkers() (Reader, *mockS3Client) {
-	s := &mockS3Client{}
-	return NewS3Reader(s, "testBucket", "test/prefix", 15), s
 }
 
 func getReaderNoPrefix() (Reader, *mockS3Client) {

@@ -8,7 +8,6 @@ import (
 
 	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
 	"github.com/Financial-Times/content-rw-s3/service"
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -87,52 +86,18 @@ func main() {
 		EnvVar: "LOG_METRICS",
 	})
 
-	sourceAddresses := app.Strings(cli.StringsOpt{
-		Name:   "source-addresses",
-		Value:  []string{},
-		Desc:   "Addresses used by the queue consumer to connect to the queue",
-		EnvVar: "SRC_ADDR",
-	})
-
-	sourceGroup := app.String(cli.StringOpt{
-		Name:   "source-group",
-		Value:  "",
-		Desc:   "Group used to read the messages from the queue",
-		EnvVar: "SRC_GROUP",
-	})
-
-	sourceTopic := app.String(cli.StringOpt{
-		Name:   "source-topic",
-		Value:  "",
-		Desc:   "The topic to read the meassages from",
-		EnvVar: "SRC_TOPIC",
-	})
-
-	sourceConcurrentProcessing := app.Bool(cli.BoolOpt{
-		Name:   "source-concurrent-processing",
-		Value:  false,
-		Desc:   "Whether the consumer uses concurrent processing for the messages",
-		EnvVar: "SRC_CONCURRENT_PROCESSING",
-	})
-
 	app.Action = func() {
 
-		qConf := consumer.QueueConfig{
-			Addrs:                *sourceAddresses,
-			Group:                *sourceGroup,
-			Topic:                *sourceTopic,
-			ConcurrentProcessing: *sourceConcurrentProcessing,
-		}
 		baseftrwapp.OutputMetricsIfRequired(*graphiteTCPAddress, *graphitePrefix, *logMetrics)
 
-		runServer(*port, *resourcePath, *awsRegion, *bucketName, *bucketPrefix, *wrkSize, qConf)
+		runServer(*port, *resourcePath, *awsRegion, *bucketName, *bucketPrefix, *wrkSize)
 	}
 	log.SetLevel(log.InfoLevel)
 	log.Infof("Application started with args %s", os.Args)
 	app.Run(os.Args)
 }
 
-func runServer(port string, resourcePath string, awsRegion string, bucketName string, bucketPrefix string, wrks int, qConf consumer.QueueConfig) {
+func runServer(port string, resourcePath string, awsRegion string, bucketName string, bucketPrefix string, wrks int) {
 	hc := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -168,16 +133,9 @@ func runServer(port string, resourcePath string, awsRegion string, bucketName st
 	service.Handlers(servicesRouter, wh, rh, resourcePath)
 	service.AddAdminHandlers(servicesRouter, svc, bucketName)
 
-	qp := service.NewQProcessor(w)
-
 	log.Infof("listening on %v", port)
 
-	if qConf.Topic != "" {
-		c := consumer.NewConsumer(qConf, qp.ProcessMsg, hc)
-		go c.Start()
-		defer c.Stop()
-	}
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	if err := http.ListenAndServe(":" + port, nil); err != nil {
 		log.Fatalf("Unable to start server: %v", err)
 	}
 

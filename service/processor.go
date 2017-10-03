@@ -2,15 +2,10 @@ package service
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
-	"sync"
-
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	transactionid "github.com/Financial-Times/transactionid-utils-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -20,14 +15,6 @@ import (
 	"fmt"
 )
 
-type QProcessor interface {
-	ProcessMsg(m consumer.Message)
-}
-
-func NewQProcessor(w Writer) QProcessor {
-	return &S3QProcessor{w}
-}
-
 type S3QProcessor struct {
 	Writer
 }
@@ -35,50 +22,8 @@ type KafkaMsg struct {
 	Id string `json:"uuid"`
 }
 
-func (r *S3QProcessor) ProcessMsg(m consumer.Message) {
-	var uuid string
-	var ct string
-	var ok bool
-	tid := m.Headers[transactionid.TransactionIDHeader]
-	if tid == "" {
-		tid = transactionid.NewTransactionID()
-	}
-	if ct, ok = m.Headers["Content-Type"]; !ok {
-		ct = ""
-	}
-
-	var km KafkaMsg
-	b := []byte(m.Body)
-	if err := json.Unmarshal(b, &km); err != nil {
-		log.WithError(err).WithFields(log.Fields{
-			"message_id":     m.Headers["Message-Id"],
-			"transaction_id": tid,
-		}).Error("Could not unmarshal message")
-		return
-	}
-
-	if uuid = km.Id; uuid == "" {
-		uuid = m.Headers["Message-Id"]
-	}
-
-	if err := r.Write(uuid, "TODO", &b, ct, tid); err != nil {
-		log.WithError(err).WithFields(log.Fields{
-			"UUID":           uuid,
-			"transaction_id": tid,
-		}).Error("Failed to write")
-	} else {
-		log.WithError(err).WithFields(log.Fields{
-			"UUID":           uuid,
-			"transaction_id": tid,
-		}).Info("Wrote successfully")
-	}
-}
-
 type Reader interface {
 	Get(uuid, publishedDate string) (bool, io.ReadCloser, *string, error)
-	Count() (int64, error)
-	Ids() (io.PipeReader, error)
-	GetAll() (io.PipeReader, error)
 	Head(uuid, date string) (bool, error)
 	GetPublishDateForUUID(uuid string) (string, bool, error)
 }
@@ -135,41 +80,6 @@ func (r *S3Reader) Head(uuid, date string) (bool, error) {
 	return true, nil
 }
 
-func (r *S3Reader) Count() (int64, error) {
-	cc := make(chan *s3.ListObjectsV2Output, 10)
-	rc := make(chan int64, 1)
-
-	go func() {
-		t := int64(0)
-		for i := range cc {
-			for _, o := range i.Contents {
-				if (!strings.HasSuffix(*o.Key, "/") && !strings.HasPrefix(*o.Key, "__")) && (*o.Key != ".") {
-					t++
-				}
-			}
-		}
-		rc <- t
-	}()
-
-	err := r.svc.ListObjectsV2Pages(r.getListObjectsV2Input(),
-		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
-			cc <- page
-
-			if lastPage {
-				close(cc)
-			}
-			return !lastPage
-		})
-
-	var c int64
-	if err == nil {
-		c = <-rc
-	} else {
-		close(rc)
-	}
-	return c, err
-}
-
 func (r *S3Reader) getListObjectsV2Input() *s3.ListObjectsV2Input {
 	if r.bucketPrefix == "" {
 		return &s3.ListObjectsV2Input{
@@ -198,96 +108,6 @@ func (r *S3Reader) GetPublishDateForUUID(uuid string) (string, bool, error) {
 	}
 
 	return "", false, nil
-}
-
-func (r *S3Reader) GetAll() (io.PipeReader, error) {
-	err := r.checkListOk()
-	pv, pw := io.Pipe()
-	if err != nil {
-		pv.Close()
-		return *pv, err
-	}
-
-	itemSize := float32(r.workers) * 1.5
-	items := make(chan *io.ReadCloser, int(itemSize))
-	keys := make(chan *string, 3000) //  Three times the default Page size
-	go r.processItems(items, pw)
-	var wg sync.WaitGroup
-	tw := int(r.workers)
-	for w := 0; w < tw; w++ {
-		wg.Add(1)
-		go r.getItemWorker(w, &wg, keys, items)
-	}
-
-	go r.listObjects(keys)
-
-	go func(w *sync.WaitGroup, i chan *io.ReadCloser) {
-		w.Wait()
-		close(i)
-	}(&wg, items)
-
-	return *pv, err
-}
-
-func (r *S3Reader) getItemWorker(w int, wg *sync.WaitGroup, keys <-chan *string, items chan <- *io.ReadCloser) {
-	defer wg.Done()
-	for uuidWithPD := range keys {
-		splitted := strings.Split(*uuidWithPD, "_")
-		//todo: fix this, splitted[0] is the publishDate and splitted[1] is uuid, r.get() takes uuid as first param, and publishDate as second param.
-		if found, i, _, _ := r.Get(splitted[0], splitted[1]); found {
-			items <- &i
-		}
-	}
-}
-
-func (r *S3Reader) processItems(items <-chan *io.ReadCloser, pw *io.PipeWriter) {
-	for item := range items {
-		if _, err := io.Copy(pw, *item); err != nil {
-			log.Errorf("Error reading from S3: %v", err.Error())
-		} else {
-			io.WriteString(pw, "\n")
-		}
-	}
-	pw.Close()
-}
-
-func (r *S3Reader) Ids() (io.PipeReader, error) {
-
-	err := r.checkListOk()
-	pv, pw := io.Pipe()
-	if err != nil {
-		pv.Close()
-		return *pv, err
-	}
-
-	go func(p *io.PipeWriter) {
-
-		keys := make(chan *string, 3000) //  Three times the default Page size
-		go func(c <-chan *string, out *io.PipeWriter) {
-			encoder := json.NewEncoder(out)
-			for key := range c {
-				pl := obj{UUID: *key}
-				if err := encoder.Encode(pl); err != nil {
-					log.Errorf("Got error encoding key : %v", err.Error())
-					break
-				}
-			}
-			out.Close()
-		}(keys, p)
-
-		err := r.listObjects(keys)
-		if err != nil {
-			log.Errorf("Got an error reading content of bucket : %v", err.Error())
-		}
-	}(pw)
-	return *pv, err
-}
-
-func (r *S3Reader) checkListOk() (err error) {
-	p := r.getListObjectsV2Input()
-	p.MaxKeys = aws.Int64(1)
-	_, err = r.svc.ListObjectsV2(p)
-	return err
 }
 
 func (r *S3Reader) listObjects(keys chan <- *string) error {
@@ -474,46 +294,6 @@ func NewReaderHandler(reader Reader) ReaderHandler {
 
 type ReaderHandler struct {
 	reader Reader
-}
-
-func (rh *ReaderHandler) HandleIds(rw http.ResponseWriter, r *http.Request) {
-	pv, err := rh.reader.Ids()
-	defer pv.Close()
-	if err != nil {
-		readerServiceUnavailable(r.URL.RequestURI(), err, rw)
-		return
-	}
-
-	rw.Header().Set("Content-Type", "application/octet-stream")
-	rw.WriteHeader(http.StatusOK)
-	io.Copy(rw, &pv)
-}
-
-func (rh *ReaderHandler) HandleCount(rw http.ResponseWriter, r *http.Request) {
-	i, err := rh.reader.Count()
-	if err != nil {
-		readerServiceUnavailable("", err, rw)
-		return
-	}
-	log.Infof("Got a count back of '%v'", i)
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	b := []byte{}
-	b = strconv.AppendInt(b, i, 10)
-	rw.Write(b)
-}
-
-func (rh *ReaderHandler) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
-	pv, err := rh.reader.GetAll()
-
-	if err != nil {
-		readerServiceUnavailable(r.URL.RequestURI(), err, rw)
-		return
-	}
-
-	rw.Header().Set("Content-Type", "application/octet-stream")
-	rw.WriteHeader(http.StatusOK)
-	io.Copy(rw, &pv)
 }
 
 func (rh *ReaderHandler) HandleGet(rw http.ResponseWriter, r *http.Request) {
