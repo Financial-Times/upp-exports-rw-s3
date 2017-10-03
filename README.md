@@ -1,16 +1,16 @@
-# Generic Reader/Writer for S3 
+# Content Reader/Writer for S3 
 
-[![Circle CI](https://circleci.com/gh/Financial-Times/generic-rw-s3.svg?style=shield)](https://circleci.com/gh/Financial-Times/generic-rw-s3)[![Go Report Card](https://goreportcard.com/badge/github.com/Financial-Times/generic-rw-s3)](https://goreportcard.com/report/github.com/Financial-Times/generic-rw-s3) [![Coverage Status](https://coveralls.io/repos/github/Financial-Times/generic-rw-s3/badge.svg)](https://coveralls.io/github/Financial-Times/generic-rw-s3)
+[![Circle CI](https://circleci.com/gh/Financial-Times/content-rw-s3.svg?style=shield)](https://circleci.com/gh/Financial-Times/content-rw-s3)[![Go Report Card](https://goreportcard.com/badge/github.com/Financial-Times/content-rw-s3)](https://goreportcard.com/report/github.com/Financial-Times/content-rw-s3) [![Coverage Status](https://coveralls.io/repos/github/Financial-Times/content-rw-s3/badge.svg)](https://coveralls.io/github/Financial-Times/content-rw-s3)
  
-## system-code: upp-generic-s3-rw
+## system-code: upp-content-s3-rw
 ## Introduction
-An API for reading/writing generic payloads up to S3. It can be setup to read those payloads off Kafka.
+An API for reading/writing content payloads up to S3. It can be setup to read those payloads off Kafka.
 
 ## Installation
 
 1. go get github.com/kardianos/govendor
-2. go get github.com/Financial-Times/generic-rw-s3
-3. cd $GOPATH/src/github.com/Financial-Times/generic-rw-s3
+2. go get github.com/Financial-Times/content-rw-s3
+3. cd $GOPATH/src/github.com/Financial-Times/content-rw-s3
 4. govendor sync
 
 
@@ -20,7 +20,7 @@ An API for reading/writing generic payloads up to S3. It can be setup to read th
 export|set PORT=8080
 export|set BUCKET_NAME='bucketName"
 export|set AWS_REGION="eu-west-1"
-$GOPATH/bin/generic-rw-s3
+$GOPATH/bin/content-rw-s3
 ```
 The app assumes that you have correctly set up your AWS credentials by either using the `~/.aws/credentials` file:
 
@@ -45,19 +45,19 @@ export|set SRC_CONCURRENT_PROCESSING=true # Whether the consumer uses concurrent
 ```
 
 ### Run locally with read from kafka enabled
-`$GOPATH/bin/generic-rw-s3 --port=8080 --bucketName="bucketName" --bucketPrefix="bucketPrefix" --awsRegion="eu-west-1" --source-addresses="<proyx_address>" --source-group="<consumer_group>" --source-topic="<topic_to_read>"`
+`$GOPATH/bin/content-rw-s3 --port=8080 --bucketName="bucketName" --bucketPrefix="bucketPrefix" --awsRegion="eu-west-1" --source-addresses="<proyx_address>" --source-group="<consumer_group>" --source-topic="<topic_to_read>"`
 
 ### Run locally with specified resource path
-`$GOPATH/bin/generic-rw-s3 --port=8080 --resourcePath="concepts" --bucketName="bucketName" --bucketPrefix="bucketPrefix" --awsRegion="eu-west-1"`
+`$GOPATH/bin/content-rw-s3 --port=8080 --resourcePath="concepts" --bucketName="bucketName" --bucketPrefix="bucketPrefix" --awsRegion="eu-west-1"`
 
 ## Test locally
 See Endpoints section.
 
 ## Build and deployment
-* Docker Hub builds: [coco/generic-rw-s3](https://hub.docker.com/r/coco/generic-rw-s3/)
-* Cluster deployment:  [concepts-rw-s3@.service](https://github.com/Financial-Times/pub-service-files), [generic-rw-s3@service](https://github.com/Financial-Times/up-service-files)
-* CI provided by CircleCI: [generic-rw-s3](https://circleci.com/gh/Financial-Times/generic-rw-s3)
-* Code coverage provided by Coverall: [generic-rw-s3](https://coveralls.io/github/Financial-Times/generic-rw-s3)
+* Docker Hub builds: [coco/content-rw-s3](https://hub.docker.com/r/coco/content-rw-s3/)
+* Cluster deployment:  [concepts-rw-s3@.service](https://github.com/Financial-Times/pub-service-files), [content-rw-s3@service](https://github.com/Financial-Times/up-service-files)
+* CI provided by CircleCI: [content-rw-s3](https://circleci.com/gh/Financial-Times/content-rw-s3)
+* Code coverage provided by Coverall: [content-rw-s3](https://coveralls.io/github/Financial-Times/content-rw-s3)
 
 ## Service Endpoints
 For complete API specification see [S3 Read/Write API Endpoint](https://docs.google.com/document/d/1Ck-o0Le9cXOfm-aVjiGmOT7ZTB5W5fDTsPqGkhzfa-U/edit#)

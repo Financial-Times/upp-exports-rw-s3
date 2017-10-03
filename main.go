@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
-	"github.com/Financial-Times/generic-rw-s3/service"
+	"github.com/Financial-Times/content-rw-s3/service"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -22,7 +22,7 @@ const (
 )
 
 func main() {
-	app := cli.App("generic-rw-s3", "A RESTful API for writing data to S3")
+	app := cli.App("content-rw-s3", "A RESTful API for writing data to S3")
 
 	port := app.String(cli.StringOpt{
 		Name:   "port",

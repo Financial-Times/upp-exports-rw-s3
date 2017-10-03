@@ -1,6 +1,6 @@
 FROM golang:1.8.3-alpine
 
-ENV PROJECT=generic-rw-s3
+ENV PROJECT=content-rw-s3
 COPY . /${PROJECT}-sources/
 
 RUN apk --no-cache --virtual .build-dependencies add git \
@@ -27,4 +27,4 @@ RUN apk --no-cache --virtual .build-dependencies add git \
   && rm -rf $GOPATH /var/cache/apk/*
 
 WORKDIR /
-CMD ["/generic-rw-s3"]
+CMD ["/content-rw-s3"]
