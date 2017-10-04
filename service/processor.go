@@ -80,7 +80,7 @@ func (r *S3Reader) Head(uuid, date string) (bool, error) {
 	return true, nil
 }
 
-func (r *S3Reader) getListObjectsV2Input() *s3.ListObjectsV2Input {
+func (r *S3Reader) getListObjectsV2Input(uuid string) *s3.ListObjectsV2Input {
 	if r.bucketPrefix == "" {
 		return &s3.ListObjectsV2Input{
 			Bucket: aws.String(r.bucketName),
@@ -88,13 +88,13 @@ func (r *S3Reader) getListObjectsV2Input() *s3.ListObjectsV2Input {
 	}
 	return &s3.ListObjectsV2Input{
 		Bucket: aws.String(r.bucketName),
-		Prefix: aws.String(r.bucketPrefix + "/"),
+		Prefix: aws.String(r.bucketPrefix + "/" + uuid),
 	}
 }
 
 func (r *S3Reader) GetPublishDateForUUID(uuid string) (string, bool, error) {
 	keys := make(chan *string, 3000)
-	go r.listObjects(keys)
+	go r.listObjects(keys, uuid)
 
 	for key := range keys {
 		splitKey := strings.Split(*key, "_")
@@ -102,16 +102,16 @@ func (r *S3Reader) GetPublishDateForUUID(uuid string) (string, bool, error) {
 			return "", false, fmt.Errorf("Cannot parse date from s3 object key %s", *key)
 		}
 
-		if splitKey[1] == uuid {
-			return splitKey[0], true, nil
+		if splitKey[0] == uuid {
+			return splitKey[1], true, nil
 		}
 	}
 
 	return "", false, nil
 }
 
-func (r *S3Reader) listObjects(keys chan <- *string) error {
-	return r.svc.ListObjectsV2Pages(r.getListObjectsV2Input(),
+func (r *S3Reader) listObjects(keys chan <- *string, uuid string) error {
+	return r.svc.ListObjectsV2Pages(r.getListObjectsV2Input(uuid),
 		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
 			for _, o := range page.Contents {
 				if (!strings.HasSuffix(*o.Key, "/") && !strings.HasPrefix(*o.Key, "__")) && (*o.Key != ".") {
@@ -155,7 +155,7 @@ func NewS3Writer(svc s3iface.S3API, bucketName string, bucketPrefix string) Writ
 }
 
 func getKey(bucketPrefix, date, uuid string) string {
-	return bucketPrefix + "/" + date + "_" + uuid + ".json"
+	return bucketPrefix + "/" + uuid + "_" + date + ".json"
 }
 
 func (w *S3Writer) Delete(uuid, date string) error {
@@ -211,6 +211,13 @@ func NewWriterHandler(writer Writer, reader Reader) WriterHandler {
 func (w *WriterHandler) HandleWrite(rw http.ResponseWriter, r *http.Request) {
 	uuid := uuid(r.URL.Path)
 	newPublishDate := r.URL.Query().Get("date")
+
+	if newPublishDate == "" {
+		rw.Header().Set("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusBadRequest)
+		rw.Write([]byte("{\"message\":\"Required query param 'date' was not provided.\"}"))
+		return
+	}
 
 	rw.Header().Set("Content-Type", "application/json")
 	var err error
