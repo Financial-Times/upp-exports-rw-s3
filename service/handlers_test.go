@@ -79,8 +79,8 @@ func TestRequestUrlMatchesResourcePathShouldHaveSuccessfulResponse(t *testing.T)
 	mr := &mockReader{}
 	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, "")
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, newRequest("PUT", "/22f53313-85c6-46b2-94e7-cfde9322f26c", "PAYLOAD"))
-	assert.Equal(t, 201, rec.Code)
+	r.ServeHTTP(rec, newRequest("PUT", "/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20", "PAYLOAD"))
+	assert.Equal(t, 200, rec.Code)
 }
 
 func TestRequestUrlDoesNotMatchResourcePathShouldHaveNotFoundResponse(t *testing.T) {
@@ -100,13 +100,13 @@ func TestWriteHandlerNewContentReturnsCreated(t *testing.T) {
 	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, ExpectedResourcePath)
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c"), "PAYLOAD"))
+	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-09-10"), "PAYLOAD"))
 
-	assert.Equal(t, 201, rec.Code)
+	assert.Equal(t, 200, rec.Code)
 	assert.Equal(t, "PAYLOAD", mw.payload)
 	assert.Equal(t, "22f53313-85c6-46b2-94e7-cfde9322f26c", mw.uuid)
 	assert.Equal(t, ExpectedContentType, mw.ct)
-	assert.Equal(t, "{\"message\":\"CREATED\"}", rec.Body.String())
+	assert.Equal(t, "{\"message\":\"UPDATED\"}", rec.Body.String())
 }
 
 func TestWriteHandlerUpdateContentReturnsOK(t *testing.T) {
@@ -116,12 +116,11 @@ func TestWriteHandlerUpdateContentReturnsOK(t *testing.T) {
 	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, ExpectedResourcePath)
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/89d15f70-640d-11e4-9803-0800200c9a66"), "PAYLOAD"))
+	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/89d15f70-640d-11e4-9803-0800200c9a66?date=2017-09-10"), "PAYLOAD"))
 
 	assert.Equal(t, 200, rec.Code)
 	assert.Equal(t, "PAYLOAD", mw.payload)
 	assert.Equal(t, "89d15f70-640d-11e4-9803-0800200c9a66", mw.uuid)
-	assert.Equal(t, "89d15f70-640d-11e4-9803-0800200c9a66", mr.headUuid)
 	assert.Equal(t, ExpectedContentType, mw.ct)
 	assert.Equal(t, "{\"message\":\"UPDATED\"}", rec.Body.String())
 }
@@ -133,7 +132,7 @@ func TestWriterHandlerFailReadingBody(t *testing.T) {
 	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, ExpectedResourcePath)
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, newRequestBodyFail("PUT", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c")))
+	r.ServeHTTP(rec, newRequestBodyFail("PUT", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-09-10")))
 	assert.Equal(t, 500, rec.Code)
 	assert.Equal(t, "{\"message\":\"Unknown internal error\"}", rec.Body.String())
 }
@@ -145,7 +144,7 @@ func TestWriterHandlerFailWrite(t *testing.T) {
 	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, ExpectedResourcePath)
 
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c"), "PAYLOAD"))
+	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-09-10"), "PAYLOAD"))
 	assert.Equal(t, 503, rec.Code)
 	assert.Equal(t, "{\"message\":\"Service currently unavailable\"}", rec.Body.String())
 }
@@ -280,7 +279,6 @@ type mockReader struct {
 	sync.Mutex
 	found       bool
 	uuid        string
-	headUuid    string
 	payload     string
 	rc          io.ReadCloser
 	returnError error
@@ -307,13 +305,6 @@ func (r *mockReader) Get(uuid, publishedDate string) (bool, io.ReadCloser, *stri
 	}
 
 	return r.payload != "" || r.rc != nil, body, &r.returnCT, r.returnError
-}
-
-func (r *mockReader) Head(uuid, publishedDate string) (bool, error) {
-	r.Lock()
-	defer r.Unlock()
-	r.headUuid = uuid
-	return r.found, r.returnError
 }
 
 func (r *mockReader) processPipe() (io.PipeReader, error) {

@@ -24,7 +24,6 @@ type KafkaMsg struct {
 
 type Reader interface {
 	Get(uuid, publishedDate string) (bool, io.ReadCloser, *string, error)
-	Head(uuid, date string) (bool, error)
 	GetPublishDateForUUID(uuid string) (string, bool, error)
 }
 
@@ -60,24 +59,6 @@ func (r *S3Reader) Get(uuid, publishedDate string) (bool, io.ReadCloser, *string
 	}
 
 	return true, resp.Body, resp.ContentType, err
-}
-
-func (r *S3Reader) Head(uuid, date string) (bool, error) {
-	params := &s3.HeadObjectInput{
-		Bucket: aws.String(r.bucketName), // Required
-		Key:    aws.String(getKey(r.bucketPrefix, date, uuid)), // Required
-	}
-
-	_, err := r.svc.HeadObject(params)
-	if err != nil {
-		e, ok := err.(awserr.Error)
-		if ok && e.Code() == "NotFound" {
-			return false, nil
-		}
-		log.Errorf("Error found : %v", err.Error())
-		return false, err
-	}
-	return true, nil
 }
 
 func (r *S3Reader) getListObjectsV2Input(uuid string) *s3.ListObjectsV2Input {
@@ -255,7 +236,6 @@ func (w *WriterHandler) HandleWrite(rw http.ResponseWriter, r *http.Request) {
 	if found {
 		rw.WriteHeader(http.StatusOK)
 		rw.Write([]byte("{\"message\":\"UPDATED\"}"))
-
 	} else {
 		rw.WriteHeader(http.StatusCreated)
 		rw.Write([]byte("{\"message\":\"CREATED\"}"))
