@@ -286,6 +286,14 @@ type ReaderHandler struct {
 func (rh *ReaderHandler) HandleGet(rw http.ResponseWriter, r *http.Request) {
 	uuid := uuid(r.URL.Path)
 	publishedDate := r.URL.Query().Get("publishedDate")
+
+	if publishedDate == "" {
+		rw.Header().Set("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusBadRequest)
+		rw.Write([]byte("{\"message\":\"Required query param 'publishedDate' was not provided.\"}"))
+		return
+	}
+
 	f, i, ct, err := rh.reader.Get(uuid, publishedDate)
 	if err != nil {
 		readerServiceUnavailable(r.URL.RequestURI(), err, rw)
