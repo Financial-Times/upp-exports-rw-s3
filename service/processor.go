@@ -67,6 +67,7 @@ func (r *S3Reader) getListObjectsV2Input(uuid string) *s3.ListObjectsV2Input {
 			Bucket: aws.String(r.bucketName),
 		}
 	}
+
 	return &s3.ListObjectsV2Input{
 		Bucket: aws.String(r.bucketName),
 		Prefix: aws.String(r.bucketPrefix + "/" + uuid),
@@ -169,7 +170,6 @@ func (w *S3Writer) Write(uuid, date string, b *[]byte, ct string, tid string) er
 	params.Metadata[transactionid.TransactionIDKey] = &tid
 
 	resp, err := w.svc.PutObject(params)
-
 	if err != nil {
 		log.Errorf("Error found, Resp was : %v", resp)
 		return err
@@ -192,7 +192,6 @@ func NewWriterHandler(writer Writer, reader Reader) WriterHandler {
 func (w *WriterHandler) HandleWrite(rw http.ResponseWriter, r *http.Request) {
 	uuid := uuid(r.URL.Path)
 	newPublishDate := r.URL.Query().Get("date")
-
 	if newPublishDate == "" {
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusBadRequest)
@@ -203,7 +202,6 @@ func (w *WriterHandler) HandleWrite(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	var err error
 	bs, err := ioutil.ReadAll(r.Body)
-
 	if err != nil {
 		writerStatusInternalServerError(uuid, err, rw)
 		return
@@ -251,7 +249,6 @@ func writerStatusInternalServerError(uuid string, err error, rw http.ResponseWri
 func (w *WriterHandler) HandleDelete(rw http.ResponseWriter, r *http.Request) {
 	uuid := uuid(r.URL.Path)
 	publishedDate, found, err := w.reader.GetPublishDateForUUID(uuid)
-
 	if err != nil {
 		rw.Header().Set("Content-Type", "application/json")
 		writerServiceUnavailable(uuid, err, rw)
@@ -286,7 +283,6 @@ type ReaderHandler struct {
 func (rh *ReaderHandler) HandleGet(rw http.ResponseWriter, r *http.Request) {
 	uuid := uuid(r.URL.Path)
 	publishedDate := r.URL.Query().Get("date")
-
 	if publishedDate == "" {
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusBadRequest)
@@ -307,7 +303,6 @@ func (rh *ReaderHandler) HandleGet(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	b, err := ioutil.ReadAll(i)
-
 	if err != nil {
 		log.WithError(err).Error("Error reading body")
 		rw.Header().Set("Content-Type", "application/json")

@@ -50,11 +50,13 @@ func (c *checker) healthCheck() (string, error) {
 	params := &s3.HeadBucketInput{
 		Bucket: aws.String(c.bucketName), // Required
 	}
+
 	_, err := c.HeadBucket(params)
 	if err != nil {
 		log.Errorf("Got error running S3 health check, %v", err.Error())
 		return "Can not perform check on S3 bucket", err
 	}
+
 	return "Access to S3 bucket ok", err
 }
 
@@ -63,6 +65,7 @@ func (c *checker) gtgCheckHandler() gtg.Status {
 		log.Info("Healthcheck failed, gtg is bad.")
 		return gtg.Status{GoodToGo: false, Message: "Head request to S3 failed"}
 	}
+
 	return gtg.Status{GoodToGo: true, Message: "OK"}
 }
 
@@ -76,5 +79,6 @@ func Handlers(servicesRouter *mux.Router, wh WriterHandler, rh ReaderHandler, re
 	if resourcePath != "" {
 		resourcePath = fmt.Sprintf("/%s", resourcePath)
 	}
+
 	servicesRouter.Handle(fmt.Sprintf("%s%s", resourcePath, "/{uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}"), mh)
 }

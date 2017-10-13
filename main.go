@@ -87,9 +87,7 @@ func main() {
 	})
 
 	app.Action = func() {
-
 		baseftrwapp.OutputMetricsIfRequired(*graphiteTCPAddress, *graphitePrefix, *logMetrics)
-
 		runServer(*port, *resourcePath, *awsRegion, *bucketName, *bucketPrefix, *wrkSize)
 	}
 	log.SetLevel(log.InfoLevel)
@@ -135,7 +133,7 @@ func runServer(port string, resourcePath string, awsRegion string, bucketName st
 
 	log.Infof("listening on %v", port)
 
-	if err := http.ListenAndServe(":" + port, servicesRouter); err != nil {
+	if err := http.ListenAndServe(":"+port, servicesRouter); err != nil {
 		log.Fatalf("Unable to start server: %v", err)
 	}
 
