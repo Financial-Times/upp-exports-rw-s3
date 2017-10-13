@@ -1,0 +1,4 @@
+apiVersion: v1
+description: content-rw-s3 Helm chart for Kubernetes
+name: content-rw-s3
+version: 0.0.0  # this entry can be left untouched as it is automatically handled by Jenkins pipeline

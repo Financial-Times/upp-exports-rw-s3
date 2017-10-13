@@ -1,0 +1,10 @@
+# Values used for the deployed application.
+replicaCount: 1
+service:
+  name: content-rw-s3
+env:
+  bucket:
+    name: "com.ft.universalpublishing.enrichedcontentdata.test"
+    prefix: "k8s-unarchived"
+  log:
+    metrics: "false"
