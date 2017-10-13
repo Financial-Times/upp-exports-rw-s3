@@ -2,11 +2,9 @@
 replicaCount: 1
 service:
   name: content-rw-s3
-bucket:
-  key: "generic-rw-s3.bucket"
 env:
   bucket:
-    name: "com.ft.universalpublishing.enrichedcontentdata"
-    prefix: "unarchived"
+    name: "com.ft.universalpublishing.enrichedcontentdata.test"
+    prefix: "k8s-unarchived"
   log:
     metrics: "false"

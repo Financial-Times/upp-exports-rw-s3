@@ -62,7 +62,7 @@ See Endpoints section.
 ## Service Endpoints
 For complete API specification see [S3 Read/Write API Endpoint](https://docs.google.com/document/d/1Ck-o0Le9cXOfm-aVjiGmOT7ZTB5W5fDTsPqGkhzfa-U/edit#)
 
-### PUT /UUID
+### PUT /UUID?date=<DATE>
 
 Any payload can be written via the PUT using a unique UUID to identify this payload within the S3 bucket
 
@@ -79,7 +79,7 @@ The reason we do this is so that it becomes easier to manage/browser for content
 It is also good practice to do this as it means that files get put into different partitions. 
 This is important if you're writing and pulling content from S3 as it means that content will get written/read from different partitions on S3.
 
-### GET /UUID
+### GET /UUID?date=<DATE>
 This internal read should return what was written to S3
 
 If not found, you'll get a 404 response.
@@ -95,13 +95,6 @@ Will return 204
 
 ### GET /
 Streams all payloads in a given bucket
-
-### GET /__ids
-Streams all ids in a given bucket
-
-```
-curl http://localhost:8080/__ids
-```
 
 The return payload will look like:
 

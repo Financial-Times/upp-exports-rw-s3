@@ -95,7 +95,7 @@ func (r *S3Reader) listObjects(keys chan <- *string, uuid string) error {
 	return r.svc.ListObjectsV2Pages(r.getListObjectsV2Input(uuid),
 		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
 			for _, o := range page.Contents {
-				if (!strings.HasSuffix(*o.Key, "/") && !strings.HasPrefix(*o.Key, "__")) && (*o.Key != ".") {
+				if !strings.HasSuffix(*o.Key, "/") {
 					var key string
 					if r.bucketPrefix == "" {
 						key = *o.Key
@@ -285,12 +285,12 @@ type ReaderHandler struct {
 
 func (rh *ReaderHandler) HandleGet(rw http.ResponseWriter, r *http.Request) {
 	uuid := uuid(r.URL.Path)
-	publishedDate := r.URL.Query().Get("publishedDate")
+	publishedDate := r.URL.Query().Get("date")
 
 	if publishedDate == "" {
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte("{\"message\":\"Required query param 'publishedDate' was not provided.\"}"))
+		rw.Write([]byte("{\"message\":\"Required query param 'date' was not provided.\"}"))
 		return
 	}
 

@@ -20,7 +20,6 @@ import (
 
 const (
 	expectedUUID = "123e4567-e89b-12d3-a456-426655440000"
-	expectedMessageID = "7654e321-b98e-3d12-654a-000042665544"
 	expectedContentType = "content/type"
 	expectedTransactionId = "tid_0123456789"
 )
@@ -262,28 +261,6 @@ func TestGetFromS3WithNoneAWSError(t *testing.T) {
 	assert.False(t, b)
 	assert.Nil(t, i)
 	assert.Nil(t, ct)
-}
-
-func generateKeys(count int, addIgnoredKeys bool) s3.ListObjectsV2Output {
-	fc := count
-	if addIgnoredKeys {
-		fc = fc + 2
-	}
-	keys := make([]*s3.Object, fc)
-	for i := 0; i < count; i++ {
-		keys[i] = &s3.Object{Key: aws.String(fmt.Sprintf("test/prefix/123e4567/e89b/12d3/a456/%012d", i))}
-	}
-
-	if addIgnoredKeys {
-		keys[count] = &s3.Object{Key: aws.String(fmt.Sprintf("test/prefix/123e4567/e89b/12d3/a456/%012d/", count))} // ignored as ends with '/'
-		keys[count + 1] = &s3.Object{Key: aws.String(fmt.Sprintf("__gtg %012d/", count + 1))}                           // ignored as starts with '__'
-		count++
-	}
-
-	return s3.ListObjectsV2Output{
-		KeyCount: aws.Int64(int64(fc)),
-		Contents: keys,
-	}
 }
 
 func TestDelete(t *testing.T) {
