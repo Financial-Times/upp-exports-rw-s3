@@ -305,7 +305,7 @@ type mockReader struct {
 	returnCT    string
 }
 
-func (r *mockReader)GetPublishDateForUUID(uuid string) (string, bool, error) {
+func (r *mockReader) GetPublishDateForUUID(uuid string) (string, bool, error) {
 	return "", true, nil
 }
 
