@@ -191,28 +191,28 @@ func TestReadHandlerForUUID(t *testing.T) {
 	r := mux.NewRouter()
 	mr := &mockReader{payload: "Some content", returnCT: "return/type"}
 	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?publishedDate=2017-10-20"), 200, "Some content", "return/type")
+	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 200, "Some content", "return/type")
 }
 
 func TestReadHandlerForUUIDAndNoContentType(t *testing.T) {
 	r := mux.NewRouter()
 	mr := &mockReader{payload: "Some content"}
 	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?publishedDate=2017-10-20"), 200, "Some content", "")
+	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 200, "Some content", "")
 }
 
 func TestReadHandlerForUUIDNotFound(t *testing.T) {
 	r := mux.NewRouter()
 	mr := &mockReader{}
 	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?publishedDate=2017-10-20"), 404, "{\"message\":\"Item not found\"}", ExpectedContentType)
+	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 404, "{\"message\":\"Item not found\"}", ExpectedContentType)
 }
 
 func TestReadHandlerForErrorFromReader(t *testing.T) {
 	r := mux.NewRouter()
 	mr := &mockReader{payload: "something came back but", returnError: errors.New("Some error from reader though")}
 	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?publishedDate=2017-10-20"), 503, "{\"message\":\"Service currently unavailable\"}", ExpectedContentType)
+	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 503, "{\"message\":\"Service currently unavailable\"}", ExpectedContentType)
 }
 
 func TestReadHandlerForErrorReadingBody(t *testing.T) {
@@ -220,14 +220,14 @@ func TestReadHandlerForErrorReadingBody(t *testing.T) {
 	mr := &mockReader{rc: &mockReaderCloser{err: errors.New("Some error")}}
 	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
 
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?publishedDate=2017-10-20"), 502, "{\"message\":\"Error while communicating to other service\"}", ExpectedContentType)
+	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 502, "{\"message\":\"Error while communicating to other service\"}", ExpectedContentType)
 }
 
 func TestReadHandlerForMissingPublishedDate(t *testing.T) {
 	r := mux.NewRouter()
 	mr := &mockReader{payload: "Some content"}
 	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
-	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c"), 400, "{\"message\":\"Required query param 'publishedDate' was not provided.\"}", ExpectedContentType)
+	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c"), 400, "{\"message\":\"Required query param 'date' was not provided.\"}", ExpectedContentType)
 }
 
 func assertRequestAndResponseFromRouter(t testing.TB, r *mux.Router, url string, expectedStatus int, expectedBody string, expectedContentType string) *httptest.ResponseRecorder {

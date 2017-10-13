@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	transactionid "github.com/Financial-Times/transactionid-utils-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
