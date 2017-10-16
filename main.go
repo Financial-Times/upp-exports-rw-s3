@@ -133,7 +133,7 @@ func runServer(port string, resourcePath string, awsRegion string, bucketName st
 
 	log.Infof("listening on %v", port)
 
-	if err := http.ListenAndServe(":"+port, servicesRouter); err != nil {
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Unable to start server: %v", err)
 	}
 
