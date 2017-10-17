@@ -31,7 +31,7 @@ func AddAdminHandlers(servicesRouter *mux.Router, svc s3iface.S3API, bucketName 
 			BusinessImpact:   "Unable to access S3 bucket",
 			Name:             "S3 Bucket check",
 			PanicGuide:       "http://ft.com",
-			Severity:         1,
+			Severity:         2,
 			TechnicalSummary: `Can not access S3 bucket.`,
 			Checker:          c.healthCheck,
 		}))
@@ -69,16 +69,10 @@ func (c *checker) gtgCheckHandler() gtg.Status {
 	return gtg.Status{GoodToGo: true, Message: "OK"}
 }
 
-func Handlers(servicesRouter *mux.Router, wh WriterHandler, rh ReaderHandler, resourcePath string) {
-	mh := handlers.MethodHandler{
-		"PUT":    http.HandlerFunc(wh.HandleWrite),
-		"GET":    http.HandlerFunc(rh.HandleGet),
-		"DELETE": http.HandlerFunc(wh.HandleDelete),
-	}
-
+func Handlers(servicesRouter *mux.Router, mh *handlers.MethodHandler, resourcePath string, endpointRegex string) {
 	if resourcePath != "" {
 		resourcePath = fmt.Sprintf("/%s", resourcePath)
 	}
 
-	servicesRouter.Handle(fmt.Sprintf("%s%s", resourcePath, "/{uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}"), mh)
+	servicesRouter.Handle(fmt.Sprintf("%s%s", resourcePath, endpointRegex), mh)
 }

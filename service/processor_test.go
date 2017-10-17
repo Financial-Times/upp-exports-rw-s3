@@ -116,7 +116,7 @@ func TestWritingToS3(t *testing.T) {
 	p := []byte("PAYLOAD")
 	ct := expectedContentType
 	var err error
-	err = w.Write(expectedUUID, "2017-10-10", &p, ct, expectedTransactionId)
+	err = w.WriteContent(expectedUUID, "2017-10-10", &p, ct, expectedTransactionId)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, s.putObjectInput)
 	assert.Equal(t, "test/prefix/123e4567-e89b-12d3-a456-426655440000_2017-10-10.json", *s.putObjectInput.Key)
@@ -139,13 +139,13 @@ func TestWritingToS3WithTransactionID(t *testing.T) {
 	resWriter := httptest.NewRecorder()
 	handler := NewWriterHandler(mw, mr)
 
-	handler.HandleWrite(resWriter, r)
+	handler.HandleContentWrite(resWriter, r)
 
 	assert.Equal(t, expectedTransactionId, mw.tid)
 
 	w, s := getWriter()
 
-	err := w.Write(expectedUUID, "", &[]byte{}, "", mw.tid)
+	err := w.WriteContent(expectedUUID, "", &[]byte{}, "", mw.tid)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedTransactionId, *s.putObjectInput.Metadata[transactionid.TransactionIDKey])
@@ -158,13 +158,13 @@ func TestWritingToS3WithNewTransactionID(t *testing.T) {
 	resWriter := httptest.NewRecorder()
 	handler := NewWriterHandler(mw, mr)
 
-	handler.HandleWrite(resWriter, r)
+	handler.HandleContentWrite(resWriter, r)
 
 	assert.Equal(t, 14, len(mw.tid))
 
 	w, s := getWriter()
 
-	err := w.Write(expectedUUID, "", &[]byte{}, "", mw.tid)
+	err := w.WriteContent(expectedUUID, "", &[]byte{}, "", mw.tid)
 
 	assert.NoError(t, err)
 	assert.Equal(t, mw.tid, *s.putObjectInput.Metadata[transactionid.TransactionIDKey])
@@ -174,7 +174,7 @@ func TestWritingToS3WithNoContentType(t *testing.T) {
 	w, s := getWriter()
 	p := []byte("PAYLOAD")
 	var err error
-	err = w.Write(expectedUUID, "2017-10-10", &p, "", expectedTransactionId)
+	err = w.WriteContent(expectedUUID, "2017-10-10", &p, "", expectedTransactionId)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, s.putObjectInput)
 	assert.Equal(t, "test/prefix/123e4567-e89b-12d3-a456-426655440000_2017-10-10.json", *s.putObjectInput.Key)
@@ -194,7 +194,7 @@ func TestFailingToWriteToS3(t *testing.T) {
 	p := []byte("PAYLOAD")
 	ct := expectedContentType
 	s.s3error = errors.New("S3 error")
-	err := w.Write(expectedUUID, "", &p, ct, expectedTransactionId)
+	err := w.WriteContent(expectedUUID, "", &p, ct, expectedTransactionId)
 	assert.Error(t, err)
 }
 
@@ -202,7 +202,7 @@ func TestGetFromS3(t *testing.T) {
 	r, s := getReader()
 	s.payload = "PAYLOAD"
 	s.ct = expectedContentType
-	b, i, ct, err := r.Get(expectedUUID, "2016-10-10")
+	b, i, ct, err := r.GetContent(expectedUUID, "2016-10-10")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, s.getObjectInput)
 	assert.Equal(t, "test/prefix/123e4567-e89b-12d3-a456-426655440000_2016-10-10.json", *s.getObjectInput.Key)
@@ -216,7 +216,7 @@ func TestGetFromS3NoPrefix(t *testing.T) {
 	r, s := getReaderNoPrefix()
 	s.payload = "PAYLOAD"
 	s.ct = expectedContentType
-	b, i, ct, err := r.Get(expectedUUID, "2016-10-10")
+	b, i, ct, err := r.GetContent(expectedUUID, "2016-10-10")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, s.getObjectInput)
 	assert.Equal(t, "/123e4567-e89b-12d3-a456-426655440000_2016-10-10.json", *s.getObjectInput.Key)
@@ -231,7 +231,7 @@ func TestGetFromS3WhenNoSuchKey(t *testing.T) {
 	r, s := getReader()
 	s.s3error = awserr.New("NoSuchKey", "message", errors.New("Some error"))
 	s.payload = "PAYLOAD"
-	b, i, ct, err := r.Get(expectedUUID, "")
+	b, i, ct, err := r.GetContent(expectedUUID, "")
 	assert.NoError(t, err)
 	assert.False(t, b)
 	assert.Nil(t, i)
@@ -242,7 +242,7 @@ func TestGetFromS3WithUnknownError(t *testing.T) {
 	r, s := getReader()
 	s.s3error = awserr.New("I don't know", "message", errors.New("Some error"))
 	s.payload = "ERROR PAYLOAD"
-	b, i, ct, err := r.Get(expectedUUID, "")
+	b, i, ct, err := r.GetContent(expectedUUID, "")
 	assert.Error(t, err)
 	assert.Equal(t, s.s3error, err)
 	assert.False(t, b)
@@ -254,7 +254,7 @@ func TestGetFromS3WithNoneAWSError(t *testing.T) {
 	r, s := getReader()
 	s.s3error = errors.New("Some error")
 	s.payload = "ERROR PAYLOAD"
-	b, i, ct, err := r.Get(expectedUUID, "")
+	b, i, ct, err := r.GetContent(expectedUUID, "")
 	assert.Error(t, err)
 	assert.Equal(t, s.s3error, err)
 	assert.False(t, b)
@@ -268,7 +268,7 @@ func TestDelete(t *testing.T) {
 
 	t.Run("With prefix", func(t *testing.T) {
 		w, s = getWriter()
-		err := w.Delete(expectedUUID, "2017-01-06")
+		err := w.DeleteContent(expectedUUID, "2017-01-06")
 		assert.NoError(t, err)
 		assert.Equal(t, "test/prefix/123e4567-e89b-12d3-a456-426655440000_2017-01-06.json", *s.deleteObjectInput.Key)
 		assert.Equal(t, "testBucket", *s.deleteObjectInput.Bucket)
@@ -276,7 +276,7 @@ func TestDelete(t *testing.T) {
 
 	t.Run("Without prefix", func(t *testing.T) {
 		w, s = getWriterNoPrefix()
-		err := w.Delete(expectedUUID, "2017-01-06")
+		err := w.DeleteContent(expectedUUID, "2017-01-06")
 		assert.NoError(t, err)
 		assert.Equal(t, "/123e4567-e89b-12d3-a456-426655440000_2017-01-06.json", *s.deleteObjectInput.Key)
 		assert.Equal(t, "testBucket", *s.deleteObjectInput.Bucket)
@@ -285,7 +285,7 @@ func TestDelete(t *testing.T) {
 	t.Run("Fails", func(t *testing.T) {
 		w, s = getWriter()
 		s.s3error = errors.New("Some S3 error")
-		err := w.Delete(expectedUUID, "")
+		err := w.DeleteContent(expectedUUID, "")
 		assert.Error(t, err)
 		assert.Equal(t, s.s3error, err)
 	})
@@ -293,20 +293,20 @@ func TestDelete(t *testing.T) {
 
 func getReader() (Reader, *mockS3Client) {
 	s := &mockS3Client{}
-	return NewS3Reader(s, "testBucket", "test/prefix", 1), s
+	return NewS3Reader(s, "testBucket", "test/prefix", "", 1), s
 }
 
 func getReaderNoPrefix() (Reader, *mockS3Client) {
 	s := &mockS3Client{}
-	return NewS3Reader(s, "testBucket", "", 1), s
+	return NewS3Reader(s, "testBucket", "", "", 1), s
 }
 
 func getWriter() (Writer, *mockS3Client) {
 	s := &mockS3Client{}
-	return NewS3Writer(s, "testBucket", "test/prefix"), s
+	return NewS3Writer(s, "testBucket", "test/prefix", ""), s
 }
 
 func getWriterNoPrefix() (Writer, *mockS3Client) {
 	s := &mockS3Client{}
-	return NewS3Writer(s, "testBucket", ""), s
+	return NewS3Writer(s, "testBucket", "", ""), s
 }

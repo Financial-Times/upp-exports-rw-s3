@@ -10,11 +10,11 @@ import (
 	"strings"
 	"sync"
 	"testing"
-
 	status "github.com/Financial-Times/service-status-go/httphandlers"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/gorilla/handlers"
 )
 
 const (
@@ -77,7 +77,14 @@ func TestRequestUrlMatchesResourcePathShouldHaveSuccessfulResponse(t *testing.T)
 	r := mux.NewRouter()
 	mw := &mockWriter{}
 	mr := &mockReader{}
-	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, "")
+	wh := NewWriterHandler(mw, mr)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleContentWrite),
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"DELETE": http.HandlerFunc(wh.HandleContentDelete),
+	}
+	Handlers(r, conceptMethodHandler, "", "/{filename}")
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, newRequest("PUT", "/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20", "PAYLOAD"))
 	assert.Equal(t, 200, rec.Code)
@@ -87,7 +94,14 @@ func TestRequestUrlDoesNotMatchResourcePathShouldHaveNotFoundResponse(t *testing
 	r := mux.NewRouter()
 	mw := &mockWriter{}
 	mr := &mockReader{}
-	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, "nonempty")
+	wh := NewWriterHandler(mw, mr)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleContentWrite),
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"DELETE": http.HandlerFunc(wh.HandleContentDelete),
+	}
+	Handlers(r, conceptMethodHandler, "/test", "/{filename}")
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, newRequest("PUT", "/22f53313-85c6-46b2-94e7-cfde9322f26c", "PAYLOAD"))
 	assert.Equal(t, 404, rec.Code)
@@ -97,7 +111,14 @@ func TestWriteHandlerNewContentReturnsCreated(t *testing.T) {
 	r := mux.NewRouter()
 	mw := &mockWriter{}
 	mr := &mockReader{}
-	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, ExpectedResourcePath)
+	wh := NewWriterHandler(mw, mr)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleContentWrite),
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"DELETE": http.HandlerFunc(wh.HandleContentDelete),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath,"/{filename}")
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-09-10"), "PAYLOAD"))
@@ -113,7 +134,14 @@ func TestWriteHandlerUpdateContentReturnsOK(t *testing.T) {
 	r := mux.NewRouter()
 	mw := &mockWriter{}
 	mr := &mockReader{found: true}
-	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, ExpectedResourcePath)
+	wh := NewWriterHandler(mw, mr)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleContentWrite),
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"DELETE": http.HandlerFunc(wh.HandleContentDelete),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/89d15f70-640d-11e4-9803-0800200c9a66?date=2017-09-10"), "PAYLOAD"))
@@ -129,7 +157,14 @@ func TestWriteHandlerUpdateContentReturnsBadRequest(t *testing.T) {
 	r := mux.NewRouter()
 	mw := &mockWriter{}
 	mr := &mockReader{found: true}
-	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, ExpectedResourcePath)
+	wh := NewWriterHandler(mw, mr)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleContentWrite),
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"DELETE": http.HandlerFunc(wh.HandleContentDelete),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/89d15f70-640d-11e4-9803-0800200c9a66"), "PAYLOAD"))
@@ -142,7 +177,14 @@ func TestWriterHandlerFailReadingBody(t *testing.T) {
 	r := mux.NewRouter()
 	mw := &mockWriter{}
 	mr := &mockReader{}
-	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, ExpectedResourcePath)
+	wh := NewWriterHandler(mw, mr)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleContentWrite),
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"DELETE": http.HandlerFunc(wh.HandleContentDelete),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, newRequestBodyFail("PUT", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-09-10")))
@@ -154,7 +196,14 @@ func TestWriterHandlerFailWrite(t *testing.T) {
 	r := mux.NewRouter()
 	mw := &mockWriter{returnError: errors.New("error writing")}
 	mr := &mockReader{}
-	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, ExpectedResourcePath)
+	wh := NewWriterHandler(mw, mr)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleContentWrite),
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"DELETE": http.HandlerFunc(wh.HandleContentDelete),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-09-10"), "PAYLOAD"))
@@ -166,7 +215,14 @@ func TestWriterHandlerDeleteReturnsOK(t *testing.T) {
 	r := mux.NewRouter()
 	mw := &mockWriter{}
 	mr := &mockReader{}
-	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, ExpectedResourcePath)
+	wh := NewWriterHandler(mw, mr)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleContentWrite),
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"DELETE": http.HandlerFunc(wh.HandleContentDelete),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, newRequest("DELETE", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c"), ""))
@@ -179,7 +235,14 @@ func TestWriterHandlerDeleteFailsReturns503(t *testing.T) {
 	r := mux.NewRouter()
 	mw := &mockWriter{returnError: errors.New("Some error from writer")}
 	mr := &mockReader{}
-	Handlers(r, NewWriterHandler(mw, mr), ReaderHandler{}, ExpectedResourcePath)
+	wh := NewWriterHandler(mw, mr)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleContentWrite),
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"DELETE": http.HandlerFunc(wh.HandleContentDelete),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, newRequest("DELETE", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c"), ""))
@@ -190,35 +253,55 @@ func TestWriterHandlerDeleteFailsReturns503(t *testing.T) {
 func TestReadHandlerForUUID(t *testing.T) {
 	r := mux.NewRouter()
 	mr := &mockReader{payload: "Some content", returnCT: "return/type"}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 200, "Some content", "return/type")
 }
 
 func TestReadHandlerForUUIDAndNoContentType(t *testing.T) {
 	r := mux.NewRouter()
 	mr := &mockReader{payload: "Some content"}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 200, "Some content", "")
 }
 
 func TestReadHandlerForUUIDNotFound(t *testing.T) {
 	r := mux.NewRouter()
 	mr := &mockReader{}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 404, "{\"message\":\"Item not found\"}", ExpectedContentType)
 }
 
 func TestReadHandlerForErrorFromReader(t *testing.T) {
 	r := mux.NewRouter()
 	mr := &mockReader{payload: "something came back but", returnError: errors.New("Some error from reader though")}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 503, "{\"message\":\"Service currently unavailable\"}", ExpectedContentType)
 }
 
 func TestReadHandlerForErrorReadingBody(t *testing.T) {
 	r := mux.NewRouter()
 	mr := &mockReader{rc: &mockReaderCloser{err: errors.New("Some error")}}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 502, "{\"message\":\"Error while communicating to other service\"}", ExpectedContentType)
 }
@@ -226,7 +309,11 @@ func TestReadHandlerForErrorReadingBody(t *testing.T) {
 func TestReadHandlerForMissingPublishedDate(t *testing.T) {
 	r := mux.NewRouter()
 	mr := &mockReader{payload: "Some content"}
-	Handlers(r, WriterHandler{}, NewReaderHandler(mr), ExpectedResourcePath)
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c"), 400, "{\"message\":\"Required query param 'date' was not provided.\"}", ExpectedContentType)
 }
 
@@ -309,7 +396,7 @@ func (r *mockReader) GetPublishDateForUUID(uuid string) (string, bool, error) {
 	return "", true, nil
 }
 
-func (r *mockReader) Get(uuid, publishedDate string) (bool, io.ReadCloser, *string, error) {
+func (r *mockReader) GetContent(uuid, publishedDate string) (bool, io.ReadCloser, *string, error) {
 	r.Lock()
 	defer r.Unlock()
 	log.Infof("Got request for uuid: %v", uuid)
@@ -349,7 +436,19 @@ type mockWriter struct {
 	writeCalled bool
 }
 
-func (mw *mockWriter) Delete(uuid, publishedDate string) error {
+func (mw *mockWriter) DeleteConcept(fileName string) error {
+	return nil
+}
+func (mw *mockWriter) WriteConcept(fileName string, b *[]byte, ct string, tid string) error {
+	return nil
+}
+
+func (r *mockReader) GetConcept(fileName string) (bool, io.ReadCloser, *string, error) {
+	t:=""
+	return false, nil, &t, nil
+}
+
+func (mw *mockWriter) DeleteContent(uuid, publishedDate string) error {
 	mw.Lock()
 	defer mw.Unlock()
 	mw.uuid = uuid
@@ -359,7 +458,7 @@ func (mw *mockWriter) Delete(uuid, publishedDate string) error {
 	return mw.deleteError
 }
 
-func (mw *mockWriter) Write(uuid, publishedDate string, b *[]byte, ct string, tid string) error {
+func (mw *mockWriter) WriteContent(uuid, publishedDate string, b *[]byte, ct string, tid string) error {
 	mw.Lock()
 	defer mw.Unlock()
 	mw.uuid = uuid
