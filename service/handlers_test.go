@@ -107,6 +107,23 @@ func TestRequestUrlDoesNotMatchResourcePathShouldHaveNotFoundResponse(t *testing
 	assert.Equal(t, 404, rec.Code)
 }
 
+func TestWriteHandlerNewConceptReturnsCreated(t *testing.T) {
+	r := mux.NewRouter()
+	mw := &mockWriter{}
+	mr := &mockReader{}
+	wh := NewWriterHandler(mw, mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleConceptWrite),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/organisations"), "PAYLOAD"))
+
+	assert.Equal(t, 200, rec.Code)
+	assert.Equal(t, "{\"message\":\"UPDATED\"}", rec.Body.String())
+}
+
 func TestWriteHandlerNewContentReturnsCreated(t *testing.T) {
 	r := mux.NewRouter()
 	mw := &mockWriter{}
@@ -118,14 +135,14 @@ func TestWriteHandlerNewContentReturnsCreated(t *testing.T) {
 		"GET":    http.HandlerFunc(rh.HandleContentGet),
 		"DELETE": http.HandlerFunc(wh.HandleContentDelete),
 	}
-	Handlers(r, conceptMethodHandler, ExpectedResourcePath,"/{filename}")
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-09-10"), "PAYLOAD"))
 
 	assert.Equal(t, 200, rec.Code)
 	assert.Equal(t, "PAYLOAD", mw.payload)
-	assert.Equal(t, "22f53313-85c6-46b2-94e7-cfde9322f26c", mw.uuid)
+	assert.Equal(t, "22f53313-85c6-46b2-94e7-cfde9322f26c", mw.name)
 	assert.Equal(t, ExpectedContentType, mw.ct)
 	assert.Equal(t, "{\"message\":\"UPDATED\"}", rec.Body.String())
 }
@@ -148,7 +165,7 @@ func TestWriteHandlerUpdateContentReturnsOK(t *testing.T) {
 
 	assert.Equal(t, 200, rec.Code)
 	assert.Equal(t, "PAYLOAD", mw.payload)
-	assert.Equal(t, "89d15f70-640d-11e4-9803-0800200c9a66", mw.uuid)
+	assert.Equal(t, "89d15f70-640d-11e4-9803-0800200c9a66", mw.name)
 	assert.Equal(t, ExpectedContentType, mw.ct)
 	assert.Equal(t, "{\"message\":\"UPDATED\"}", rec.Body.String())
 }
@@ -211,6 +228,23 @@ func TestWriterHandlerFailWrite(t *testing.T) {
 	assert.Equal(t, "{\"message\":\"Service currently unavailable\"}", rec.Body.String())
 }
 
+func TestWriterConceptHandlerDeleteReturnsOK(t *testing.T) {
+	r := mux.NewRouter()
+	mw := &mockWriter{}
+	mr := &mockReader{}
+	wh := NewWriterHandler(mw, mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"DELETE": http.HandlerFunc(wh.HandleConceptDelete),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, newRequest("DELETE", withExpectedResourcePath("/fileName.txt"), ""))
+	assert.Equal(t, "fileName.txt", mw.name)
+	assert.Equal(t, 204, rec.Code)
+	assert.Empty(t, rec.Body.String())
+}
+
 func TestWriterHandlerDeleteReturnsOK(t *testing.T) {
 	r := mux.NewRouter()
 	mw := &mockWriter{}
@@ -226,7 +260,7 @@ func TestWriterHandlerDeleteReturnsOK(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, newRequest("DELETE", withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c"), ""))
-	assert.Equal(t, "22f53313-85c6-46b2-94e7-cfde9322f26c", mw.uuid)
+	assert.Equal(t, "22f53313-85c6-46b2-94e7-cfde9322f26c", mw.name)
 	assert.Equal(t, 204, rec.Code)
 	assert.Empty(t, rec.Body.String())
 }
@@ -281,6 +315,17 @@ func TestReadHandlerForUUIDNotFound(t *testing.T) {
 	}
 	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 404, "{\"message\":\"Item not found\"}", ExpectedContentType)
+}
+
+func TestReadConceptHandlerForErrorFromReader(t *testing.T) {
+	r := mux.NewRouter()
+	mr := &mockReader{payload: "something came back but", returnError: errors.New("Some error from reader though")}
+	rh := NewReaderHandler(mr)
+	conceptMethodHandler := &handlers.MethodHandler{
+		"GET":    http.HandlerFunc(rh.HandleConceptGet),
+	}
+	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
+	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 503, "{\"message\":\"Service currently unavailable\"}", ExpectedContentType)
 }
 
 func TestReadHandlerForErrorFromReader(t *testing.T) {
@@ -385,7 +430,7 @@ func newRequest(method, url string, body string) *http.Request {
 type mockReader struct {
 	sync.Mutex
 	found       bool
-	uuid        string
+	name        string
 	payload     string
 	rc          io.ReadCloser
 	returnError error
@@ -400,7 +445,7 @@ func (r *mockReader) GetContent(uuid, publishedDate string) (bool, io.ReadCloser
 	r.Lock()
 	defer r.Unlock()
 	log.Infof("Got request for uuid: %v", uuid)
-	r.uuid = uuid
+	r.name = uuid
 	var body io.ReadCloser
 
 	if r.payload != "" {
@@ -427,7 +472,7 @@ func (r *mockReader) processPipe() (io.PipeReader, error) {
 
 type mockWriter struct {
 	sync.Mutex
-	uuid        string
+	name        string
 	payload     string
 	returnError error
 	deleteError error
@@ -437,21 +482,47 @@ type mockWriter struct {
 }
 
 func (mw *mockWriter) DeleteConcept(fileName string) error {
-	return nil
+	mw.Lock()
+	defer mw.Unlock()
+	mw.name = fileName
+	if mw.returnError != nil {
+		return mw.returnError
+	}
+	return mw.deleteError
 }
 func (mw *mockWriter) WriteConcept(fileName string, b *[]byte, ct string, tid string) error {
-	return nil
+	mw.Lock()
+	defer mw.Unlock()
+	mw.name = fileName
+	mw.payload = string((*b)[:])
+	mw.ct = ct
+	mw.tid = tid
+	mw.writeCalled = true
+	return mw.returnError
 }
 
 func (r *mockReader) GetConcept(fileName string) (bool, io.ReadCloser, *string, error) {
-	t:=""
-	return false, nil, &t, nil
+	r.Lock()
+	defer r.Unlock()
+	log.Infof("Got request for fileName: %v", fileName)
+	r.name = fileName
+	var body io.ReadCloser
+
+	if r.payload != "" {
+		body = ioutil.NopCloser(strings.NewReader(r.payload))
+	}
+
+	if r.rc != nil {
+		body = r.rc
+	}
+
+	return true, body, &r.returnCT, r.returnError
 }
 
 func (mw *mockWriter) DeleteContent(uuid, publishedDate string) error {
 	mw.Lock()
 	defer mw.Unlock()
-	mw.uuid = uuid
+	mw.name = uuid
 	if mw.returnError != nil {
 		return mw.returnError
 	}
@@ -461,7 +532,7 @@ func (mw *mockWriter) DeleteContent(uuid, publishedDate string) error {
 func (mw *mockWriter) WriteContent(uuid, publishedDate string, b *[]byte, ct string, tid string) error {
 	mw.Lock()
 	defer mw.Unlock()
-	mw.uuid = uuid
+	mw.name = uuid
 	mw.payload = string((*b)[:])
 	mw.ct = ct
 	mw.tid = tid

@@ -28,7 +28,7 @@ type Reader interface {
 	GetPublishDateForUUID(uuid string) (string, bool, error)
 }
 
-func NewS3Reader(svc s3iface.S3API, bucketName string, bucketContentPrefix string,bucketConceptPrefix string, workers int16) Reader {
+func NewS3Reader(svc s3iface.S3API, bucketName string, bucketContentPrefix string, bucketConceptPrefix string, workers int16) Reader {
 	return &S3Reader{
 		svc:          svc,
 		bucketName:   bucketName,
@@ -298,6 +298,25 @@ func (w *WriterHandler) HandleConceptDelete(rw http.ResponseWriter, r *http.Requ
 	rw.WriteHeader(http.StatusNoContent)
 }
 
+func (rh *ReaderHandler) HandleContentGet(rw http.ResponseWriter, r *http.Request) {
+	uuid := getFileName(r.URL.Path)
+	publishedDate := r.URL.Query().Get("date")
+	if publishedDate == "" {
+		rw.Header().Set("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusBadRequest)
+		rw.Write([]byte("{\"message\":\"Required query param 'date' was not provided.\"}"))
+		return
+	}
+
+	f, i, ct, err := rh.reader.GetContent(uuid, publishedDate)
+	if err != nil {
+		readerServiceUnavailable(r.URL.RequestURI(), err, rw)
+		return
+	}
+
+	handleGet(f, rw, i, ct)
+}
+
 func (rh *ReaderHandler) HandleConceptGet(rw http.ResponseWriter, r *http.Request) {
 	fileName := getFileName(r.URL.Path)
 
@@ -313,6 +332,11 @@ func (rh *ReaderHandler) HandleConceptGet(rw http.ResponseWriter, r *http.Reques
 		readerServiceUnavailable(r.URL.RequestURI(), err, rw)
 		return
 	}
+
+	handleGet(f, rw, i, ct)
+}
+
+func handleGet(f bool, rw http.ResponseWriter, i io.ReadCloser, ct *string) {
 	if !f {
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusNotFound)
@@ -426,45 +450,6 @@ func NewReaderHandler(reader Reader) ReaderHandler {
 
 type ReaderHandler struct {
 	reader Reader
-}
-
-func (rh *ReaderHandler) HandleContentGet(rw http.ResponseWriter, r *http.Request) {
-	uuid := getFileName(r.URL.Path)
-	publishedDate := r.URL.Query().Get("date")
-	if publishedDate == "" {
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte("{\"message\":\"Required query param 'date' was not provided.\"}"))
-		return
-	}
-
-	f, i, ct, err := rh.reader.GetContent(uuid, publishedDate)
-	if err != nil {
-		readerServiceUnavailable(r.URL.RequestURI(), err, rw)
-		return
-	}
-	if !f {
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusNotFound)
-		rw.Write([]byte("{\"message\":\"Item not found\"}"))
-		return
-	}
-
-	b, err := ioutil.ReadAll(i)
-	if err != nil {
-		log.WithError(err).Error("Error reading body")
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusBadGateway)
-		rw.Write([]byte("{\"message\":\"Error while communicating to other service\"}"))
-		return
-	}
-
-	if ct != nil || *ct != "" {
-		rw.Header().Set("Content-Type", *ct)
-	}
-
-	rw.WriteHeader(http.StatusOK)
-	rw.Write(b)
 }
 
 func getFileName(path string) string {

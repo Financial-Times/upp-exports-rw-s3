@@ -1,10 +1,10 @@
-# Content Reader/Writer for S3 
+# Content and Concept Reader/Writer for S3 
 
 [![Circle CI](https://circleci.com/gh/Financial-Times/content-rw-s3.svg?style=shield)](https://circleci.com/gh/Financial-Times/content-rw-s3)[![Go Report Card](https://goreportcard.com/badge/github.com/Financial-Times/content-rw-s3)](https://goreportcard.com/report/github.com/Financial-Times/content-rw-s3) [![Coverage Status](https://coveralls.io/repos/github/Financial-Times/content-rw-s3/badge.svg)](https://coveralls.io/github/Financial-Times/content-rw-s3)
  
 ## system-code: upp-content-s3-rw
 ## Introduction
-An API for reading/writing content payloads up to S3. It can be setup to read those payloads off Kafka.
+An API for reading/writing content and concepts payloads up to S3.
 
 ## Installation
 
@@ -42,13 +42,14 @@ There are optional arguments as well:
 export|set BUCKET_PREFIX="bucketPrefix" # adds a prefix folder to all items uploaded
 export|set WORKERS=10 # Number of concurrent downloads when downloading all items. Default is 10
 export|set SRC_CONCURRENT_PROCESSING=true # Whether the consumer uses concurrent processing for the messages
+export|set BUCKET_CONCEPT_PREFIX= #name of the s3 folder where concepts should be stored
+export|set BUCKET_CONTENT_PREFIX= #name of the s3 folder where content should be stored
+export|set CONTENT_RESOURCE_PATH= #url prefix for endpoint that performs rw operations on content
+export|set CONCEPT_RESOURCE_PATH= #url prefix for endpoint that performs rw operations on content
 ```
 
-### Run locally with read from kafka enabled
-`$GOPATH/bin/content-rw-s3 --port=8080 --bucketName="bucketName" --bucketPrefix="bucketPrefix" --awsRegion="eu-west-1" --source-addresses="<proyx_address>" --source-group="<consumer_group>" --source-topic="<topic_to_read>"`
-
 ### Run locally with specified resource path
-`$GOPATH/bin/content-rw-s3 --port=8080 --resourcePath="concepts" --bucketName="bucketName" --bucketPrefix="bucketPrefix" --awsRegion="eu-west-1"`
+`$GOPATH/bin/content-rw-s3 --port=8080 --resourcePath="concepts" --bucketName="bucketName" --bucketContentPrefix="bucketPrefix" --bucketConceptPrefix="bucketPrefix" --awsRegion="eu-west-1"`
 
 ## Test locally
 See Endpoints section.
@@ -62,7 +63,7 @@ See Endpoints section.
 ## Service Endpoints
 For complete API specification see [S3 Read/Write API Endpoint](https://docs.google.com/document/d/1Ck-o0Le9cXOfm-aVjiGmOT7ZTB5W5fDTsPqGkhzfa-U/edit#)
 
-### PUT /UUID?date=<DATE>
+### Content PUT <CONTENT_RESOURCE_PATH>/UUID?date=<DATE>
 
 Any payload can be written via the PUT using a unique UUID to identify this payload within the S3 bucket
 
@@ -79,7 +80,10 @@ The reason we do this is so that it becomes easier to manage/browser for content
 It is also good practice to do this as it means that files get put into different partitions. 
 This is important if you're writing and pulling content from S3 as it means that content will get written/read from different partitions on S3.
 
-### GET /UUID?date=<DATE>
+### Concept PUT <CONCEPT_RESOURCE_PATH>/FILE_NAME
+Will upload the file with FILE_NAME and file content provided as request payload to S3.
+
+### Content GET <CONTENT_RESOURCE_PATH>/UUID?date=<DATE>
 This internal read should return what was written to S3
 
 If not found, you'll get a 404 response.
@@ -88,24 +92,14 @@ If not found, you'll get a 404 response.
 curl http://localhost:8080/bcac6326-dd23-4b6a-9dfa-c2fbeb9737d9
 ```
 
-### DELETE /UUID
-Will return 204
+### Concept GET <CONCEPT_RESOURCE_PATH>/FILE_NAME
+This internal read should return the file with FILE_NAME from s3 concept folder.
 
-## Utility endpoints
+### Content DELETE <CONTENT_RESOURCE_PATH>/UUID
+Will return 204 if delete was successful, or 404 if the file with UUID was not found.
 
-### GET /
-Streams all payloads in a given bucket
-
-The return payload will look like:
-
-```
-{"ID":"dcfa65d6-3849-445e-ac6a-15bc5a17e954"}
-{"ID":"2136f8ad-e94e-45cb-b616-336f38533214"}
-{"ID":"c9f5337d-0435-477e-b0f5-bd35ff3a4b48"}
-{"ID":"7f84a70b-7085-4309-aa8e-304b3759f49f"}
-{"ID":"99a0537a-3635-479b-92f7-ba10b63e2f87"}
-...
-```
+### Concept DELETE <CONCEPT_RESOURCE_PATH>/FILE_NAME
+Will return 204 if delete was successful, or 404 if the file with FILE_NAME was not found.
 
 ### Admin endpoints
 
