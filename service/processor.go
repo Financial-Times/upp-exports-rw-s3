@@ -368,7 +368,7 @@ func (w *WriterHandler) HandleContentWrite(rw http.ResponseWriter, r *http.Reque
 
 	newPublishDate := r.URL.Query().Get("date")
 	if newPublishDate == "" {
-		respondWithBadRequest(rw, "Required query param 'date' was not provided.\"}")
+		respondWithBadRequest(rw, "Required query param 'date' was not provided.")
 		return
 	}
 

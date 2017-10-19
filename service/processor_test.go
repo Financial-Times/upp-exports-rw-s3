@@ -15,12 +15,14 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"fmt"
 )
 
 const (
 	expectedUUID = "123e4567-e89b-12d3-a456-426655440000"
 	expectedContentType = "content/type"
 	expectedTransactionId = "tid_0123456789"
+	validUuid = "000528b0-9df9-11e3-95fe-00144feab7de"
 )
 
 type mockS3Client struct {
@@ -132,7 +134,7 @@ func TestWritingToS3(t *testing.T) {
 }
 
 func TestWritingToS3WithTransactionID(t *testing.T) {
-	r := newRequest("PUT", "https://url?date=2016-10-10", "Some body")
+	r := newRequest("PUT", fmt.Sprintf("https://url/%s?date=2016-10-10", validUuid), "Some body")
 	r.Header.Set(transactionid.TransactionIDHeader, expectedTransactionId)
 	mw := &mockWriter{}
 	mr := &mockReader{}
@@ -152,7 +154,7 @@ func TestWritingToS3WithTransactionID(t *testing.T) {
 }
 
 func TestWritingToS3WithNewTransactionID(t *testing.T) {
-	r := newRequest("PUT", "https://url?date=2017-10-10", "Some body")
+	r := newRequest("PUT", fmt.Sprintf("https://url/%s?date=2017-10-10", validUuid), "Some body")
 	mw := &mockWriter{}
 	mr := &mockReader{}
 	resWriter := httptest.NewRecorder()
