@@ -156,7 +156,7 @@ func runServer(port string, conceptResourcePath string, contentResourcePath stri
 		"DELETE": http.HandlerFunc(wh.HandleConceptDelete),
 	}
 
-	service.Handlers(servicesRouter, contentMethodHandler, contentResourcePath, "/{uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}")
+	service.Handlers(servicesRouter, contentMethodHandler, contentResourcePath, "/{uuid}")
 	service.Handlers(servicesRouter, conceptMethodHandler, conceptResourcePath, "/{fileName}")
 	service.AddAdminHandlers(servicesRouter, svc, bucketName)
 

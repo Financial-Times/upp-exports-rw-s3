@@ -1,4 +1,4 @@
-# Content and Concept Reader/Writer for S3 
+# UPP Exports Reader/Writer for S3 
 
 [![Circle CI](https://circleci.com/gh/Financial-Times/content-rw-s3.svg?style=shield)](https://circleci.com/gh/Financial-Times/content-rw-s3)[![Go Report Card](https://goreportcard.com/badge/github.com/Financial-Times/content-rw-s3)](https://goreportcard.com/report/github.com/Financial-Times/content-rw-s3) [![Coverage Status](https://coveralls.io/repos/github/Financial-Times/content-rw-s3/badge.svg)](https://coveralls.io/github/Financial-Times/content-rw-s3)
  

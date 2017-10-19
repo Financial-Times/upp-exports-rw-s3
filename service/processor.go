@@ -13,7 +13,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	log "github.com/sirupsen/logrus"
 	"fmt"
+	"regexp"
 )
+
+var uuidRegex = regexp.MustCompile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 type S3QProcessor struct {
 	Writer
@@ -233,13 +236,6 @@ func NewWriterHandler(writer Writer, reader Reader) WriterHandler {
 func (w *WriterHandler) HandleConceptWrite(rw http.ResponseWriter, r *http.Request) {
 	fileName := getFileName(r.URL.Path)
 
-	if fileName == "" {
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte("{\"message\":\"Required file name was not provided.\"}"))
-		return
-	}
-
 	rw.Header().Set("Content-Type", "application/json")
 	var err error
 	bs, err := ioutil.ReadAll(r.Body)
@@ -298,13 +294,22 @@ func (w *WriterHandler) HandleConceptDelete(rw http.ResponseWriter, r *http.Requ
 	rw.WriteHeader(http.StatusNoContent)
 }
 
+func respondWithBadRequest(rw http.ResponseWriter, message string) {
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusBadRequest)
+	rw.Write([]byte(fmt.Sprintf("{\"message\":\"%s\"}", message)))
+}
+
 func (rh *ReaderHandler) HandleContentGet(rw http.ResponseWriter, r *http.Request) {
 	uuid := getFileName(r.URL.Path)
+	if isUuidValid := uuidRegex.MatchString(uuid); !isUuidValid {
+		respondWithBadRequest(rw, "Provided UUID is invalid.")
+		return
+	}
+
 	publishedDate := r.URL.Query().Get("date")
 	if publishedDate == "" {
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte("{\"message\":\"Required query param 'date' was not provided.\"}"))
+		respondWithBadRequest(rw, "Required query param 'date' was not provided.")
 		return
 	}
 
@@ -319,13 +324,6 @@ func (rh *ReaderHandler) HandleContentGet(rw http.ResponseWriter, r *http.Reques
 
 func (rh *ReaderHandler) HandleConceptGet(rw http.ResponseWriter, r *http.Request) {
 	fileName := getFileName(r.URL.Path)
-
-	if fileName == "" {
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte("{\"message\":\"Required file name was not provided.\"}"))
-		return
-	}
 
 	f, i, ct, err := rh.reader.GetConcept(fileName)
 	if err != nil {
@@ -363,11 +361,14 @@ func handleGet(f bool, rw http.ResponseWriter, i io.ReadCloser, ct *string) {
 
 func (w *WriterHandler) HandleContentWrite(rw http.ResponseWriter, r *http.Request) {
 	uuid := getFileName(r.URL.Path)
+	if isUuidValid := uuidRegex.MatchString(uuid); !isUuidValid {
+		respondWithBadRequest(rw, "Provided UUID is invalid.")
+		return
+	}
+
 	newPublishDate := r.URL.Query().Get("date")
 	if newPublishDate == "" {
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte("{\"message\":\"Required query param 'date' was not provided.\"}"))
+		respondWithBadRequest(rw, "Required query param 'date' was not provided.\"}")
 		return
 	}
 
@@ -420,6 +421,11 @@ func writerStatusInternalServerError(uuid string, err error, rw http.ResponseWri
 
 func (w *WriterHandler) HandleContentDelete(rw http.ResponseWriter, r *http.Request) {
 	uuid := getFileName(r.URL.Path)
+	if isUuidValid := uuidRegex.MatchString(uuid); !isUuidValid {
+		respondWithBadRequest(rw, "Provided UUID is invalid.")
+		return
+	}
+
 	publishedDate, found, err := w.reader.GetPublishDateForUUID(uuid)
 	if err != nil {
 		rw.Header().Set("Content-Type", "application/json")
