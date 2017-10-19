@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
-	"github.com/Financial-Times/content-rw-s3/service"
+	"github.com/Financial-Times/upp-exports-rw-s3/service"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
