@@ -121,7 +121,6 @@ func TestWriteHandlerNewConceptReturnsCreated(t *testing.T) {
 	r.ServeHTTP(rec, newRequest("PUT", withExpectedResourcePath("/organisations"), "PAYLOAD"))
 
 	assert.Equal(t, 200, rec.Code)
-	assert.Equal(t, "{\"message\":\"UPDATED\"}", rec.Body.String())
 }
 
 func TestWriteHandlerNewContentReturnsCreated(t *testing.T) {

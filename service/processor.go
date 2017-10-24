@@ -244,7 +244,6 @@ func (w *WriterHandler) HandleConceptWrite(rw http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	found, _, _, err := w.reader.GetConcept(fileName)
 	if err != nil {
 		writerServiceUnavailable(fileName, err, rw)
 		return
@@ -257,14 +256,6 @@ func (w *WriterHandler) HandleConceptWrite(rw http.ResponseWriter, r *http.Reque
 	if err != nil {
 		writerServiceUnavailable(fileName, err, rw)
 		return
-	}
-
-	if found {
-		rw.WriteHeader(http.StatusOK)
-		rw.Write([]byte("{\"message\":\"UPDATED\"}"))
-	} else {
-		rw.WriteHeader(http.StatusCreated)
-		rw.Write([]byte("{\"message\":\"CREATED\"}"))
 	}
 }
 

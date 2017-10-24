@@ -22,7 +22,7 @@ const (
 )
 
 func main() {
-	app := cli.App("content-rw-s3", "A RESTful API for writing data to S3")
+	app := cli.App("upp-exports-rw-s3", "A RESTful API for writing content and concepts to S3")
 
 	port := app.String(cli.StringOpt{
 		Name:   "port",
@@ -33,14 +33,14 @@ func main() {
 
 	conceptResourcePath := app.String(cli.StringOpt{
 		Name:   "conceptResourcePath",
-		Value:  "",
+		Value:  "concept",
 		Desc:   "Request path parameter to identify a resource, e.g. /concept",
 		EnvVar: "CONCEPT_RESOURCE_PATH",
 	})
 
 	contentResourcePath := app.String(cli.StringOpt{
 		Name:   "contentResourcePath",
-		Value:  "",
+		Value:  "content",
 		Desc:   "Request path parameter to identify a resource, e.g. /content",
 		EnvVar: "CONTENT_RESOURCE_PATH",
 	})
