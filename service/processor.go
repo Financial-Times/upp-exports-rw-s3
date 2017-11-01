@@ -257,6 +257,8 @@ func (w *WriterHandler) HandleConceptWrite(rw http.ResponseWriter, r *http.Reque
 		writerServiceUnavailable(fileName, err, rw)
 		return
 	}
+
+	rw.WriteHeader(http.StatusOK)
 }
 
 func (w *WriterHandler) HandleConceptDelete(rw http.ResponseWriter, r *http.Request) {
