@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
-	"github.com/Financial-Times/content-rw-s3/service"
+	"github.com/Financial-Times/upp-exports-rw-s3/service"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/gorilla/mux"
 	"github.com/jawher/mow.cli"
 	log "github.com/sirupsen/logrus"
+	"github.com/gorilla/handlers"
 )
 
 const (
@@ -21,7 +22,7 @@ const (
 )
 
 func main() {
-	app := cli.App("content-rw-s3", "A RESTful API for writing data to S3")
+	app := cli.App("upp-exports-rw-s3", "A RESTful API for writing content and concepts to S3")
 
 	port := app.String(cli.StringOpt{
 		Name:   "port",
@@ -30,11 +31,18 @@ func main() {
 		EnvVar: "APP_PORT",
 	})
 
-	resourcePath := app.String(cli.StringOpt{
-		Name:   "resourcePath",
-		Value:  "",
-		Desc:   "Request path parameter to identify a resource, e.g. /concepts",
-		EnvVar: "RESOURCE_PATH",
+	conceptResourcePath := app.String(cli.StringOpt{
+		Name:   "conceptResourcePath",
+		Value:  "concept",
+		Desc:   "Request path parameter to identify a resource, e.g. /concept",
+		EnvVar: "CONCEPT_RESOURCE_PATH",
+	})
+
+	contentResourcePath := app.String(cli.StringOpt{
+		Name:   "contentResourcePath",
+		Value:  "content",
+		Desc:   "Request path parameter to identify a resource, e.g. /content",
+		EnvVar: "CONTENT_RESOURCE_PATH",
 	})
 
 	awsRegion := app.String(cli.StringOpt{
@@ -51,11 +59,18 @@ func main() {
 		EnvVar: "BUCKET_NAME",
 	})
 
-	bucketPrefix := app.String(cli.StringOpt{
-		Name:   "bucketPrefix",
+	bucketContentPrefix := app.String(cli.StringOpt{
+		Name:   "bucketContentPrefix",
 		Value:  "",
 		Desc:   "Prefix for content going into S3 bucket",
-		EnvVar: "BUCKET_PREFIX",
+		EnvVar: "BUCKET_CONTENT_PREFIX",
+	})
+
+	bucketConceptPrefix := app.String(cli.StringOpt{
+		Name:   "bucketConceptPrefix",
+		Value:  "",
+		Desc:   "Prefix for concepts going into S3 bucket",
+		EnvVar: "BUCKET_CONCEPT_PREFIX",
 	})
 
 	wrkSize := app.Int(cli.IntOpt{
@@ -88,14 +103,14 @@ func main() {
 
 	app.Action = func() {
 		baseftrwapp.OutputMetricsIfRequired(*graphiteTCPAddress, *graphitePrefix, *logMetrics)
-		runServer(*port, *resourcePath, *awsRegion, *bucketName, *bucketPrefix, *wrkSize)
+		runServer(*port, *conceptResourcePath, *contentResourcePath, *awsRegion, *bucketName, *bucketContentPrefix, *bucketConceptPrefix, *wrkSize)
 	}
 	log.SetLevel(log.InfoLevel)
-	log.Infof("Application started with args %s", os.Args)
+	log.Infof("Application started with args [concept-resource-path: %s] [content-resource-path: %s] [bucketName: %s] [bucketConceptPrefix: %s] [bucketContentPrefix: %s] [workers: %d]", *conceptResourcePath, *contentResourcePath, *bucketName, *bucketConceptPrefix, *bucketContentPrefix, *wrkSize)
 	app.Run(os.Args)
 }
 
-func runServer(port string, resourcePath string, awsRegion string, bucketName string, bucketPrefix string, wrks int) {
+func runServer(port string, conceptResourcePath string, contentResourcePath string, awsRegion string, bucketName string, bucketContentPrefix string, bucketConceptPrefix string, wrks int) {
 	hc := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -121,19 +136,33 @@ func runServer(port string, resourcePath string, awsRegion string, bucketName st
 	}
 	svc := s3.New(sess)
 
-	w := service.NewS3Writer(svc, bucketName, bucketPrefix)
-	r := service.NewS3Reader(svc, bucketName, bucketPrefix, int16(wrks))
+	w := service.NewS3Writer(svc, bucketName, bucketContentPrefix, bucketConceptPrefix)
+	r := service.NewS3Reader(svc, bucketName, bucketContentPrefix, bucketConceptPrefix, int16(wrks))
 
 	wh := service.NewWriterHandler(w, r)
 	rh := service.NewReaderHandler(r)
 
 	servicesRouter := mux.NewRouter()
-	service.Handlers(servicesRouter, wh, rh, resourcePath)
+
+	contentMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleContentWrite),
+		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"DELETE": http.HandlerFunc(wh.HandleContentDelete),
+	}
+
+	conceptMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleConceptWrite),
+		"GET":    http.HandlerFunc(rh.HandleConceptGet),
+		"DELETE": http.HandlerFunc(wh.HandleConceptDelete),
+	}
+
+	service.Handlers(servicesRouter, contentMethodHandler, contentResourcePath, "/{uuid}")
+	service.Handlers(servicesRouter, conceptMethodHandler, conceptResourcePath, "/{fileName}")
 	service.AddAdminHandlers(servicesRouter, svc, bucketName)
 
 	log.Infof("listening on %v", port)
 
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	if err := http.ListenAndServe(":" + port, nil); err != nil {
 		log.Fatalf("Unable to start server: %v", err)
 	}
 

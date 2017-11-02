@@ -49,8 +49,14 @@ spec:
               key: aws.secret_access_key
         - name: BUCKET_NAME
           value: "{{ .Values.env.bucket.name }}"
-        - name: BUCKET_PREFIX
-          value: "{{ .Values.env.bucket.prefix }}"
+        - name: CONCEPT_RESOURCE_PATH
+          value: "{{ .Values.env.concept.resource.path }}"
+        - name: CONTENT_RESOURCE_PATH
+          value: "{{ .Values.env.content.resource.path }}"
+        - name: BUCKET_CONTENT_PREFIX
+          value: "{{ .Values.env.bucket.content.prefix }}"
+        - name: BUCKET_CONCEPT_PREFIX
+          value: "{{ .Values.env.bucket.concept.prefix }}"
         - name: LOG_METRICS
           value: "{{ .Values.env.log.metrics }}"
 {{ toYaml .Values.env | indent 8 }}

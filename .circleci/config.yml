@@ -1,7 +1,7 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/Financial-Times/content-rw-s3
+    working_directory: /go/src/github.com/Financial-Times/upp-exports-rw-s3
     docker:
       - image: golang:1.8.3
         environment:
@@ -39,7 +39,7 @@ jobs:
       - store_test_results:
           path: /tmp/test-results
   dockerfile:
-    working_directory: /content-rw-s3
+    working_directory: /upp-exports-rw-s3
     docker:
       - image: docker:1.12.6-git
     steps:
