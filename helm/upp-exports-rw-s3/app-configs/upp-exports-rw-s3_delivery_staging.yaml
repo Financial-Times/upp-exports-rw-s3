@@ -1,0 +1,20 @@
+# Values used for the deployed application.
+replicaCount: 1
+service:
+  name: upp-exports-rw-s3
+env:
+  bucket:
+    name: "com.ft.universalpublishing.enrichedcontentdata.test"
+    prefix: "k8s-staging-unarchived"
+    concept:
+      prefix: "k8s-staging-concept-unarchived"
+    content:
+      prefix: "k8s-staging-content-unarchived"
+  content:
+    resource:
+      path: "content"
+  concept:
+    resource:
+      path: "concept"
+  log:
+    metrics: "false"
