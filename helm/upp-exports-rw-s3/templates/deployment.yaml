@@ -58,18 +58,17 @@ spec:
               name: global-secrets
               key: aws.secret_access_key
         - name: BUCKET_NAME
-          value: "{{ .Values.env.bucket.name }}"
-        - name: CONCEPT_RESOURCE_PATH
-          value: "{{ .Values.env.concept.resource.path }}"
-        - name: CONTENT_RESOURCE_PATH
-          value: "{{ .Values.env.content.resource.path }}"
+          value: "{{ .Values.env.BUCKET_NAME }}"
         - name: BUCKET_CONTENT_PREFIX
-          value: "{{ .Values.env.bucket.content.prefix }}"
+          value: "{{ .Values.env.BUCKET_CONTENT_PREFIX }}"
         - name: BUCKET_CONCEPT_PREFIX
-          value: "{{ .Values.env.bucket.concept.prefix }}"
+          value: "{{ .Values.env.BUCKET_CONCEPT_PREFIX }}"
+        - name: CONTENT_RESOURCE_PATH
+          value: "{{ .Values.env.CONTENT_RESOURCE_PATH }}"
+        - name: CONCEPT_RESOURCE_PATH
+          value: "{{ .Values.env.CONCEPT_RESOURCE_PATH }}"
         - name: LOG_METRICS
-          value: "{{ .Values.env.log.metrics }}"
-{{ toYaml .Values.env | indent 8 }}
+          value: "{{ .Values.env.LOG_METRICS }}"
         ports:
         - containerPort: 8080
         livenessProbe:
