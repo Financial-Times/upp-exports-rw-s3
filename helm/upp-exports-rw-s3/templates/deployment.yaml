@@ -46,7 +46,7 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: global-config
-              key: aws.region
+              key: upp-exports-s3.region
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -58,17 +58,26 @@ spec:
               name: global-secrets
               key: aws.secret_access_key
         - name: BUCKET_NAME
-          value: "{{ .Values.env.BUCKET_NAME }}"
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: upp-exports-s3.bucket
         - name: BUCKET_CONTENT_PREFIX
-          value: "{{ .Values.env.BUCKET_CONTENT_PREFIX }}"
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: upp-exports-s3.content.prefix
         - name: BUCKET_CONCEPT_PREFIX
-          value: "{{ .Values.env.BUCKET_CONCEPT_PREFIX }}"
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: upp-exports-s3.concept.prefix
         - name: CONTENT_RESOURCE_PATH
-          value: "{{ .Values.env.CONTENT_RESOURCE_PATH }}"
+          value: "{{ .Values.content.path }}"
         - name: CONCEPT_RESOURCE_PATH
-          value: "{{ .Values.env.CONCEPT_RESOURCE_PATH }}"
+          value: "{{ .Values.concept.path }}"
         - name: LOG_METRICS
-          value: "{{ .Values.env.LOG_METRICS }}"
+          value: "{{ .Values.log.metrics }}"
         ports:
         - containerPort: 8080
         livenessProbe:

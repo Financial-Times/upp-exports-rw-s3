@@ -2,7 +2,7 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 service:
-  name: "" # The name of the service, should be defined in the specific app-configs folder.
+  name: upp-exports-rw-s3
   hasHealthcheck: "true"
 replicaCount: 1
 image:
@@ -11,3 +11,9 @@ image:
 resources:
   limits:
     memory: 512Mi
+content:
+  path: "content"
+concept:
+  path: "concept"
+log:
+  metrics: "false"

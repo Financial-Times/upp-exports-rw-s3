@@ -26,7 +26,7 @@ func AddAdminHandlers(servicesRouter *mux.Router, svc s3iface.S3API, bucketName 
 	http.HandleFunc(status.PingPathDW, status.PingHandler)
 	http.HandleFunc(status.BuildInfoPath, status.BuildInfoHandler)
 	http.HandleFunc(status.BuildInfoPathDW, status.BuildInfoHandler)
-	http.HandleFunc("/__health", v1a.Handler("GenericReadWriteS3 Healthchecks",
+	http.HandleFunc("/__health", v1a.Handler("UppExportsReadWriteS3  Healthchecks",
 		"Runs a HEAD check on bucket", v1a.Check{
 			BusinessImpact:   "Unable to access S3 bucket",
 			Name:             "S3 Bucket check",
