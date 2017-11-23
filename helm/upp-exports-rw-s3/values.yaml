@@ -11,3 +11,9 @@ image:
 resources:
   limits:
     memory: 512Mi
+content:
+  path: "content"
+concept:
+  path: "concept"
+log:
+  metrics: "false"
