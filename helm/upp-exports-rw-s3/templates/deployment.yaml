@@ -18,6 +18,16 @@ spec:
         app: {{ .Values.service.name }}
         visualize: "true"
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - {{ .Values.service.name }}
+            topologyKey: "kubernetes.io/hostname"
       containers:
       - name: {{ .Values.service.name }}
         image: "{{ .Values.image.repository }}:{{ .Chart.Version }}"
@@ -36,7 +46,7 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: global-config
-              key: aws.region
+              key: upp-exports-s3.region
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -48,18 +58,26 @@ spec:
               name: global-secrets
               key: aws.secret_access_key
         - name: BUCKET_NAME
-          value: "{{ .Values.env.bucket.name }}"
-        - name: CONCEPT_RESOURCE_PATH
-          value: "{{ .Values.env.concept.resource.path }}"
-        - name: CONTENT_RESOURCE_PATH
-          value: "{{ .Values.env.content.resource.path }}"
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: upp-exports-s3.bucket
         - name: BUCKET_CONTENT_PREFIX
-          value: "{{ .Values.env.bucket.content.prefix }}"
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: upp-exports-s3.content.prefix
         - name: BUCKET_CONCEPT_PREFIX
-          value: "{{ .Values.env.bucket.concept.prefix }}"
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: upp-exports-s3.concept.prefix
+        - name: CONTENT_RESOURCE_PATH
+          value: "{{ .Values.content.path }}"
+        - name: CONCEPT_RESOURCE_PATH
+          value: "{{ .Values.concept.path }}"
         - name: LOG_METRICS
-          value: "{{ .Values.env.log.metrics }}"
-{{ toYaml .Values.env | indent 8 }}
+          value: "{{ .Values.log.metrics }}"
         ports:
         - containerPort: 8080
         livenessProbe:
