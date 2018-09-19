@@ -35,13 +35,6 @@ spec:
         env:
         - name: APP_PORT
           value: "8080"
-        - name: GRAPHITE_ADDRESS
-          valueFrom:
-            configMapKeyRef:
-              name: global-config
-              key: graphite.address
-        - name: GRAPHITE_PREFIX
-          value: "coco.services.k8s.{{ .Values.service.name }}"
         - name: AWS_REGION
           valueFrom:
             configMapKeyRef:
@@ -76,8 +69,6 @@ spec:
           value: "{{ .Values.content.path }}"
         - name: CONCEPT_RESOURCE_PATH
           value: "{{ .Values.concept.path }}"
-        - name: LOG_METRICS
-          value: "{{ .Values.log.metrics }}"
         ports:
         - containerPort: 8080
         livenessProbe:
