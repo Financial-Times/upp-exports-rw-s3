@@ -15,5 +15,3 @@ content:
   path: "content"
 concept:
   path: "concept"
-log:
-  metrics: "false"
