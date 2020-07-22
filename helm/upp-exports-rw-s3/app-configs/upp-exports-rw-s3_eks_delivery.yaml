@@ -1,0 +1,4 @@
+# Values used for the deployed application.
+service:
+  name: upp-exports-rw-s3
+eksCluster: true
