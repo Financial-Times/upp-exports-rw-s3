@@ -1,6 +1,6 @@
 # UPP Exports Reader/Writer for S3 
 
-[![Circle CI](https://circleci.com/gh/Financial-Times/upp-exports-rw-s3.svg?style=shield)](https://circleci.com/gh/Financial-Times/upp-exports-rw-s3)[![Go Report Card](https://goreportcard.com/badge/github.com/Financial-Times/upp-exports-rw-s3)](https://goreportcard.com/report/github.com/Financial-Times/upp-exports-rw-s3) [![Coverage Status](https://coveralls.io/repos/github/Financial-Times/upp-exports-rw-s3/badge.svg)](https://coveralls.io/github/Financial-Times/upp-exports-rw-s3)
+[![Circle CI](https://circleci.com/gh/Financial-Times/upp-exports-rw-s3.svg?style=shield)](https://circleci.com/gh/Financial-Times/upp-exports-rw-s3) [![Coverage Status](https://coveralls.io/repos/github/Financial-Times/upp-exports-rw-s3/badge.svg)](https://coveralls.io/github/Financial-Times/upp-exports-rw-s3)
  
 ## system-code: upp-content-s3-rw
 ## Introduction
@@ -8,17 +8,17 @@ An API for reading/writing content and concepts payloads up to S3.
 
 ## Installation
 
-1. go get github.com/kardianos/govendor
-2. go get github.com/Financial-Times/upp-exports-rw-s3
-3. cd $GOPATH/src/github.com/Financial-Times/upp-exports-rw-s3
-4. govendor sync
-
+```shell script
+go get github.com/Financial-Times/upp-exports-rw-s3
+cd $GOPATH/src/github.com/Financial-Times/upp-exports-rw-s3
+go build -mod=readonly 
+```
 
 ## Running locally
 
-```
+```shell script
 export|set PORT=8080
-export|set BUCKET_NAME='bucketName"
+export|set BUCKET_NAME='bucketName'
 export|set AWS_REGION="eu-west-1"
 $GOPATH/bin/upp-exports-rw-s3
 ```
