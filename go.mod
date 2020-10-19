@@ -11,7 +11,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1-0.20170829195320-a47672248388 // indirect
 	github.com/go-ini/ini v1.28.3-0.20170813052230-c787282c39ac // indirect
 	github.com/gorilla/context v1.1.1 // indirect
-	github.com/gorilla/handlers v1.2.2-0.20170602151648-a4d79d4487c2
+	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.5.1-0.20170922205414-3f19343c7d9c
 	github.com/hashicorp/go-version v0.0.0-20170914154128-fc61389e27c7 // indirect
 	github.com/jawher/mow.cli v1.0.2
