@@ -30,7 +30,7 @@ func AddAdminHandlers(servicesRouter *mux.Router, svc s3iface.S3API, bucketName 
 		"Runs a HEAD check on bucket", v1a.Check{
 			BusinessImpact:   "Unable to access S3 bucket",
 			Name:             "S3 Bucket check",
-			PanicGuide:       "https://dewey.ft.com/upp-exports-rw-s3.html",
+			PanicGuide:       "https://runbooks.ftops.tech/upp-exports-rw-s3",
 			Severity:         2,
 			TechnicalSummary: `Can not access S3 bucket.`,
 			Checker:          c.healthCheck,
