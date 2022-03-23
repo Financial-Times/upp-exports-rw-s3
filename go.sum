@@ -1,5 +1,5 @@
-github.com/Financial-Times/go-fthealth v0.0.0-20170525095041-e7ccca038327 h1:DeqBOBhqIZG90jr+A+pYR1+Zt0TBZwD5fR+yqJH5EcA=
-github.com/Financial-Times/go-fthealth v0.0.0-20170525095041-e7ccca038327/go.mod h1:gpAzq6W5rCheYlY32JOIxS/VjVcYHbC2PkMzQngHT9c=
+github.com/Financial-Times/go-fthealth v0.6.2 h1:e40iRPCv1G8KkZFRameDeM75a1z4d2owntIBvVx+Hf8=
+github.com/Financial-Times/go-fthealth v0.6.2/go.mod h1:gpAzq6W5rCheYlY32JOIxS/VjVcYHbC2PkMzQngHT9c=
 github.com/Financial-Times/http-handlers-go v0.0.0-20170809121007-229ac16f1d9e h1:/Y2wrSfkueFmdOIyQSABebfEe5P+yFyxBnmtnx1C0HM=
 github.com/Financial-Times/http-handlers-go v0.0.0-20170809121007-229ac16f1d9e/go.mod h1:sAkXv1oPYgNTYBYsYs83HwpYp7R50mvgBGGcsOlJtOw=
 github.com/Financial-Times/service-status-go v0.0.0-20160323111542-3f5199736a3d h1:USNBTIof6vWGM49SYrxvC5Y8NqyDL3YuuYmID81ORZQ=
