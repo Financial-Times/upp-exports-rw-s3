@@ -10,22 +10,23 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
 	status "github.com/Financial-Times/service-status-go/httphandlers"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/gorilla/handlers"
 )
 
 const (
-	ExpectedContentType = "application/json"
+	ExpectedContentType  = "application/json"
 	ExpectedResourcePath = "bob"
 )
 
 func TestAddAdminHandlers(t *testing.T) {
 	s := &mockS3Client{}
 	r := mux.NewRouter()
-	AddAdminHandlers(r, s, "bucketName")
+	AddAdminHandlers(r, s, "bucketName", "")
 
 	t.Run(status.PingPath, func(t *testing.T) {
 		assertRequestAndResponse(t, status.PingPath, 200, "pong")
@@ -113,7 +114,7 @@ func TestWriteHandlerNewConceptReturnsCreated(t *testing.T) {
 	mr := &mockReader{}
 	wh := NewWriterHandler(mw, mr)
 	conceptMethodHandler := &handlers.MethodHandler{
-		"PUT":    http.HandlerFunc(wh.HandleConceptWrite),
+		"PUT": http.HandlerFunc(wh.HandleConceptWrite),
 	}
 	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 
@@ -288,7 +289,7 @@ func TestReadHandlerForUUID(t *testing.T) {
 	mr := &mockReader{payload: "Some content", returnCT: "return/type"}
 	rh := NewReaderHandler(mr)
 	conceptMethodHandler := &handlers.MethodHandler{
-		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"GET": http.HandlerFunc(rh.HandleContentGet),
 	}
 	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 200, "Some content", "return/type")
@@ -299,7 +300,7 @@ func TestReadHandlerForUUIDAndNoContentType(t *testing.T) {
 	mr := &mockReader{payload: "Some content"}
 	rh := NewReaderHandler(mr)
 	conceptMethodHandler := &handlers.MethodHandler{
-		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"GET": http.HandlerFunc(rh.HandleContentGet),
 	}
 	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 200, "Some content", "")
@@ -310,7 +311,7 @@ func TestReadHandlerForUUIDNotFound(t *testing.T) {
 	mr := &mockReader{}
 	rh := NewReaderHandler(mr)
 	conceptMethodHandler := &handlers.MethodHandler{
-		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"GET": http.HandlerFunc(rh.HandleContentGet),
 	}
 	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 404, "{\"message\":\"Item not found\"}", ExpectedContentType)
@@ -321,7 +322,7 @@ func TestReadConceptHandlerForErrorFromReader(t *testing.T) {
 	mr := &mockReader{payload: "something came back but", returnError: errors.New("Some error from reader though")}
 	rh := NewReaderHandler(mr)
 	conceptMethodHandler := &handlers.MethodHandler{
-		"GET":    http.HandlerFunc(rh.HandleConceptGet),
+		"GET": http.HandlerFunc(rh.HandleConceptGet),
 	}
 	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 503, "{\"message\":\"Service currently unavailable\"}", ExpectedContentType)
@@ -332,7 +333,7 @@ func TestReadHandlerForErrorFromReader(t *testing.T) {
 	mr := &mockReader{payload: "something came back but", returnError: errors.New("Some error from reader though")}
 	rh := NewReaderHandler(mr)
 	conceptMethodHandler := &handlers.MethodHandler{
-		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"GET": http.HandlerFunc(rh.HandleContentGet),
 	}
 	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c?date=2017-10-20"), 503, "{\"message\":\"Service currently unavailable\"}", ExpectedContentType)
@@ -343,7 +344,7 @@ func TestReadHandlerForErrorReadingBody(t *testing.T) {
 	mr := &mockReader{rc: &mockReaderCloser{err: errors.New("Some error")}}
 	rh := NewReaderHandler(mr)
 	conceptMethodHandler := &handlers.MethodHandler{
-		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"GET": http.HandlerFunc(rh.HandleContentGet),
 	}
 	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 
@@ -355,7 +356,7 @@ func TestReadHandlerForMissingPublishedDate(t *testing.T) {
 	mr := &mockReader{payload: "Some content"}
 	rh := NewReaderHandler(mr)
 	conceptMethodHandler := &handlers.MethodHandler{
-		"GET":    http.HandlerFunc(rh.HandleContentGet),
+		"GET": http.HandlerFunc(rh.HandleContentGet),
 	}
 	Handlers(r, conceptMethodHandler, ExpectedResourcePath, "/{filename}")
 	assertRequestAndResponseFromRouter(t, r, withExpectedResourcePath("/22f53313-85c6-46b2-94e7-cfde9322f26c"), 400, "{\"message\":\"Required query param 'date' was not provided.\"}", ExpectedContentType)

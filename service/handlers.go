@@ -18,7 +18,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func AddAdminHandlers(servicesRouter *mux.Router, svc s3iface.S3API, bucketName string) {
+func AddAdminHandlers(servicesRouter *mux.Router, svc s3iface.S3API, bucketName, systemCode string) {
 	c := checker{svc, bucketName}
 	var monitoringRouter http.Handler = servicesRouter
 	monitoringRouter = httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), monitoringRouter)
@@ -30,7 +30,7 @@ func AddAdminHandlers(servicesRouter *mux.Router, svc s3iface.S3API, bucketName 
 
 	hc := &fthealth.TimedHealthCheck{
 		HealthCheck: fthealth.HealthCheck{
-			SystemCode:  "test",
+			SystemCode:  systemCode,
 			Name:        "UppExportsReadWriteS3 Healthchecks",
 			Description: "Runs a HEAD check on bucket",
 			Checks: []fthealth.Check{

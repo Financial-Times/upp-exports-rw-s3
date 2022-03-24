@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/jawher/mow.cli"
+	cli "github.com/jawher/mow.cli"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,6 +22,13 @@ const (
 
 func main() {
 	app := cli.App("upp-exports-rw-s3", "A RESTful API for writing content and concepts to S3")
+
+	appSystemCode := app.String(cli.StringOpt{
+		Name:   "app-system-code",
+		Value:  "",
+		Desc:   "System Code of the application",
+		EnvVar: "APP_SYSTEM_CODE",
+	})
 
 	port := app.String(cli.StringOpt{
 		Name:   "port",
@@ -80,14 +87,14 @@ func main() {
 	})
 
 	app.Action = func() {
-		runServer(*port, *conceptResourcePath, *contentResourcePath, *awsRegion, *bucketName, *bucketContentPrefix, *bucketConceptPrefix, *wrkSize)
+		runServer(*port, *conceptResourcePath, *contentResourcePath, *awsRegion, *bucketName, *bucketContentPrefix, *bucketConceptPrefix, *wrkSize, *appSystemCode)
 	}
 	log.SetLevel(log.InfoLevel)
 	log.Infof("Application started with args [concept-resource-path: %s] [content-resource-path: %s] [bucketName: %s] [bucketConceptPrefix: %s] [bucketContentPrefix: %s] [workers: %d]", *conceptResourcePath, *contentResourcePath, *bucketName, *bucketConceptPrefix, *bucketContentPrefix, *wrkSize)
 	app.Run(os.Args)
 }
 
-func runServer(port string, conceptResourcePath string, contentResourcePath string, awsRegion string, bucketName string, bucketContentPrefix string, bucketConceptPrefix string, wrks int) {
+func runServer(port string, conceptResourcePath string, contentResourcePath string, awsRegion string, bucketName string, bucketContentPrefix string, bucketConceptPrefix string, wrks int, appSystemCode string) {
 	hc := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -135,7 +142,7 @@ func runServer(port string, conceptResourcePath string, contentResourcePath stri
 
 	service.Handlers(servicesRouter, contentMethodHandler, contentResourcePath, "/{uuid}")
 	service.Handlers(servicesRouter, conceptMethodHandler, conceptResourcePath, "/{fileName}")
-	service.AddAdminHandlers(servicesRouter, svc, bucketName)
+	service.AddAdminHandlers(servicesRouter, svc, bucketName, appSystemCode)
 
 	log.Infof("listening on %v", port)
 

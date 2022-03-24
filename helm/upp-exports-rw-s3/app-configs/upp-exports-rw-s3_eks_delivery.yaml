@@ -3,3 +3,5 @@ service:
   name: upp-exports-rw-s3
 bucket:
   key: upp-exports-s3.bucket
+env:
+  APP_SYSTEM_CODE: "upp-exports-rw-s3"
