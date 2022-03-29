@@ -33,6 +33,8 @@ spec:
         image: "{{ .Values.image.repository }}:{{ .Chart.Version }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         env:
+        - name: APP_SYSTEM_CODE
+          value: {{ .Values.env.APP_SYSTEM_CODE }}
         - name: APP_PORT
           value: "8080"
         - name: AWS_REGION

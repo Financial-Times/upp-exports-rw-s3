@@ -3,8 +3,9 @@ package service
 import (
 	"fmt"
 	"net/http"
+	"time"
 
-	"github.com/Financial-Times/go-fthealth/v1a"
+	fthealth "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/http-handlers-go/httphandlers"
 	"github.com/Financial-Times/service-status-go/gtg"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
@@ -17,7 +18,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func AddAdminHandlers(servicesRouter *mux.Router, svc s3iface.S3API, bucketName string) {
+func AddAdminHandlers(servicesRouter *mux.Router, svc s3iface.S3API, bucketName, systemCode string) {
 	c := checker{svc, bucketName}
 	var monitoringRouter http.Handler = servicesRouter
 	monitoringRouter = httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), monitoringRouter)
@@ -26,15 +27,27 @@ func AddAdminHandlers(servicesRouter *mux.Router, svc s3iface.S3API, bucketName 
 	http.HandleFunc(status.PingPathDW, status.PingHandler)
 	http.HandleFunc(status.BuildInfoPath, status.BuildInfoHandler)
 	http.HandleFunc(status.BuildInfoPathDW, status.BuildInfoHandler)
-	http.HandleFunc("/__health", v1a.Handler("UppExportsReadWriteS3 Healthchecks",
-		"Runs a HEAD check on bucket", v1a.Check{
-			BusinessImpact:   "Unable to access S3 bucket",
-			Name:             "S3 Bucket check",
-			PanicGuide:       "https://runbooks.ftops.tech/upp-exports-rw-s3",
-			Severity:         2,
-			TechnicalSummary: `Can not access S3 bucket.`,
-			Checker:          c.healthCheck,
-		}))
+
+	hc := &fthealth.TimedHealthCheck{
+		HealthCheck: fthealth.HealthCheck{
+			SystemCode:  systemCode,
+			Name:        "UppExportsReadWriteS3 Healthchecks",
+			Description: "Runs a HEAD check on bucket",
+			Checks: []fthealth.Check{
+				{
+					BusinessImpact:   "Unable to access S3 bucket",
+					Name:             "S3 Bucket check",
+					PanicGuide:       fmt.Sprintf("https://runbooks.ftops.tech/%s", systemCode),
+					Severity:         2,
+					TechnicalSummary: `Can not access S3 bucket.`,
+					Checker:          c.healthCheck,
+				},
+			},
+		},
+		Timeout: 10 * time.Second,
+	}
+
+	http.HandleFunc("/__health", fthealth.Handler(hc))
 
 	gtgHandler := status.NewGoodToGoHandler(c.gtgCheckHandler)
 	http.HandleFunc(status.GTGPath, gtgHandler)
