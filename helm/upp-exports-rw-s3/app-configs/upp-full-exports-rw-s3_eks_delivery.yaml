@@ -1,7 +1,0 @@
-# Values used for the deployed application.
-service:
-  name: upp-full-exports-rw-s3
-bucket:
-  key: upp-full-exports-s3.bucket
-env:
-  APP_SYSTEM_CODE: "upp-full-exports-rw-s3"

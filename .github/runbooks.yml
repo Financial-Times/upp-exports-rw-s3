@@ -36,4 +36,3 @@ runbooks:
     systemCodes:
         # paths are relative to root, omitting ./ (case-insensitive)
         upp-exports-rw-s3: runbooks/upp-exports-rw-s3-runbook.md
-        upp-full-exports-rw-s3: runbooks/upp-full-exports-rw-s3-runbook.md
