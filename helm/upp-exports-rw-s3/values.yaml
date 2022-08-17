@@ -15,3 +15,4 @@ content:
   path: "content"
 concept:
   path: "concept"
+serviceAccountName: eksctl-upp-exports-rw-s3-serviceaccount
