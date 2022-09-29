@@ -118,7 +118,14 @@ func runServer(port string, conceptResourcePath string, contentResourcePath stri
 	if err != nil {
 		log.Fatalf("Failed to create AWS session: %v", err)
 	}
+
 	svc := s3.New(sess)
+
+	credValues, err := svc.Config.Credentials.Get()
+	if err != nil {
+		log.WithError(err).Fatal("Failed to obtain AWS credentials values")
+	}
+	log.Infof("Obtaining AWS credentials by using [%s] as provider", credValues.ProviderName)
 
 	w := service.NewS3Writer(svc, bucketName, bucketContentPrefix, bucketConceptPrefix)
 	r := service.NewS3Reader(svc, bucketName, bucketContentPrefix, bucketConceptPrefix, int16(wrks))
