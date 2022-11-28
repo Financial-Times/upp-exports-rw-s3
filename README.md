@@ -56,7 +56,7 @@ See Endpoints section.
 
 ## Build and deployment
 * Docker Hub builds: [coco/upp-exports-rw-s3](https://hub.docker.com/r/coco/upp-exports-rw-s3/)
-* Cluster deployment:  [upp-exports-rw-s3@.service](https://github.com/Financial-Times/pub-service-files), [upp-exports-rw-s3@service](https://github.com/Financial-Times/up-service-files)
+* Cluster deployment:  [upp-exports-rw-s3@.service](https://github.com/Financial-Times/pub-service-files)
 * CI provided by CircleCI: [upp-exports-rw-s3](https://circleci.com/gh/Financial-Times/upp-exports-rw-s3)
 * Code coverage provided by Coverall: [upp-exports-rw-s3](https://coveralls.io/github/Financial-Times/upp-exports-rw-s3)
 
