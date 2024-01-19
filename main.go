@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/Financial-Times/upp-exports-rw-s3/service"
+	"github.com/aws/aws-sdk-go-v2/config"
+	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	cli "github.com/jawher/mow.cli"
@@ -51,6 +54,13 @@ func main() {
 		EnvVar: "CONTENT_RESOURCE_PATH",
 	})
 
+	genericStoreResourcePath := app.String(cli.StringOpt{
+		Name:   "genericStoreResourcePath",
+		Value:  "generic",
+		Desc:   "Request path parameter to identify a resource, e.g. /generic",
+		EnvVar: "GENERIC_STORE_RESOURCE_PATH",
+	})
+
 	awsRegion := app.String(cli.StringOpt{
 		Name:   "awsRegion",
 		Value:  "eu-west-1",
@@ -63,6 +73,13 @@ func main() {
 		Value:  "",
 		Desc:   "Bucket name to upload things to",
 		EnvVar: "BUCKET_NAME",
+	})
+
+	presignTTL := app.Int(cli.IntOpt{
+		Name:   "presignTTL",
+		Value:  172800,
+		Desc:   "TTL for presign s3 objects",
+		EnvVar: "PRESIGN_TTL",
 	})
 
 	bucketContentPrefix := app.String(cli.StringOpt{
@@ -87,14 +104,14 @@ func main() {
 	})
 
 	app.Action = func() {
-		runServer(*port, *conceptResourcePath, *contentResourcePath, *awsRegion, *bucketName, *bucketContentPrefix, *bucketConceptPrefix, *wrkSize, *appSystemCode)
+		runServer(*port, *conceptResourcePath, *contentResourcePath, *genericStoreResourcePath, *awsRegion, *bucketName, *bucketContentPrefix, *bucketConceptPrefix, *wrkSize, *appSystemCode, *presignTTL)
 	}
 	log.SetLevel(log.InfoLevel)
 	log.Infof("Application started with args [concept-resource-path: %s] [content-resource-path: %s] [bucketName: %s] [bucketConceptPrefix: %s] [bucketContentPrefix: %s] [workers: %d]", *conceptResourcePath, *contentResourcePath, *bucketName, *bucketConceptPrefix, *bucketContentPrefix, *wrkSize)
 	app.Run(os.Args)
 }
 
-func runServer(port string, conceptResourcePath string, contentResourcePath string, awsRegion string, bucketName string, bucketContentPrefix string, bucketConceptPrefix string, wrks int, appSystemCode string) {
+func runServer(port, conceptResourcePath, contentResourcePath, genericStoreResourcePath, awsRegion, bucketName, bucketContentPrefix, bucketConceptPrefix string, wrks int, appSystemCode string, presignTTL int) {
 	hc := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -109,6 +126,12 @@ func runServer(port string, conceptResourcePath string, contentResourcePath stri
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
+
+	aws2Config, err := config.LoadDefaultConfig(context.TODO(), config.WithHTTPClient(hc), config.WithRegion(awsRegion))
+	if err != nil {
+		log.Fatalf("Failed to create AWS config: %v", err)
+	}
+
 	sess, err := session.NewSession(
 		&aws.Config{
 			Region:     aws.String(awsRegion),
@@ -125,12 +148,15 @@ func runServer(port string, conceptResourcePath string, contentResourcePath stri
 	log.Infof("Obtaining AWS credentials by using [%s] as provider", credValues.ProviderName)
 
 	svc := s3.New(sess)
+	svcV2 := s3v2.NewFromConfig(aws2Config)
 
+	presigner := service.NewPresigner(svcV2, bucketName, presignTTL)
 	w := service.NewS3Writer(svc, bucketName, bucketContentPrefix, bucketConceptPrefix)
 	r := service.NewS3Reader(svc, bucketName, bucketContentPrefix, bucketConceptPrefix, int16(wrks))
 
 	wh := service.NewWriterHandler(w, r)
 	rh := service.NewReaderHandler(r)
+	ph := service.NewPresignerHandler(presigner)
 
 	servicesRouter := mux.NewRouter()
 
@@ -146,8 +172,20 @@ func runServer(port string, conceptResourcePath string, contentResourcePath stri
 		"DELETE": http.HandlerFunc(wh.HandleConceptDelete),
 	}
 
+	genericStoreMethodHandler := &handlers.MethodHandler{
+		"PUT":    http.HandlerFunc(wh.HandleGenericStoreWrite),
+		"GET":    http.HandlerFunc(rh.HandleGenericStoreGet),
+		"DELETE": http.HandlerFunc(wh.HandleGenericStoreDelete),
+	}
+
+	presignerMethodHandler := &handlers.MethodHandler{
+		"GET": http.HandlerFunc(ph.HandlePresignURL),
+	}
+
 	service.Handlers(servicesRouter, contentMethodHandler, contentResourcePath, "/{uuid}")
 	service.Handlers(servicesRouter, conceptMethodHandler, conceptResourcePath, "/{fileName}")
+	service.Handlers(servicesRouter, genericStoreMethodHandler, genericStoreResourcePath, "/{key}")
+	service.Handlers(servicesRouter, presignerMethodHandler, "presign", "/{key}")
 	service.AddAdminHandlers(servicesRouter, svc, bucketName, appSystemCode)
 
 	log.Infof("listening on %v", port)

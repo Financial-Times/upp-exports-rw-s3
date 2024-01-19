@@ -83,6 +83,9 @@ This is important if you're writing and pulling content from S3 as it means that
 ### Concept PUT <CONCEPT_RESOURCE_PATH>/FILE_NAME
 Will upload the file with FILE_NAME and file content provided as request payload to S3.
 
+### Generic Store PUT <GENERIC_STORE_RESOURCE_PATH>/KEY
+Upload binary with any type.
+
 ### Content GET <CONTENT_RESOURCE_PATH>/UUID?date=<DATE>
 This internal read should return what was written to S3
 
@@ -95,11 +98,17 @@ curl http://localhost:8080/bcac6326-dd23-4b6a-9dfa-c2fbeb9737d9
 ### Concept GET <CONCEPT_RESOURCE_PATH>/FILE_NAME
 This internal read should return the file with FILE_NAME from s3 concept folder.
 
+### Generic Store GET <GENERIC_STORE_RESOURCE_PATH>/KEY
+Download any resource from the bucket.
+
 ### Content DELETE <CONTENT_RESOURCE_PATH>/UUID
 Will return 204 if delete was successful, or 404 if the file with UUID was not found.
 
 ### Concept DELETE <CONCEPT_RESOURCE_PATH>/FILE_NAME
 Will return 204 if delete was successful, or 404 if the file with FILE_NAME was not found.
+
+### Generic Store DELETE <GENERIC_STORE_RESOURCE_PATH>/KEY
+Delete any binary from the bucket.
 
 ### Admin endpoints
 
@@ -133,3 +142,4 @@ For this to work you need to make sure that your AWS credentials has the followi
 	]
 }
 ```
+

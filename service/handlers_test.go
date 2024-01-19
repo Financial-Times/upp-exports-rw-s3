@@ -481,6 +481,18 @@ type mockWriter struct {
 	writeCalled bool
 }
 
+func (mw *mockWriter) DeleteGenericStore(key string) error {
+	return nil
+}
+
+func (mw *mockWriter) WriteGenericStore(key string, b *[]byte, ct string, tid string) error {
+	return nil
+}
+
+func (r *mockReader) GetGenericStore(fileName string) (bool, io.ReadCloser, *string, error) {
+	return true, nil, nil, nil
+}
+
 func (mw *mockWriter) DeleteConcept(fileName string) error {
 	mw.Lock()
 	defer mw.Unlock()
