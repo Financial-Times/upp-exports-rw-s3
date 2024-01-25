@@ -8,15 +8,11 @@ import (
 	"time"
 
 	"github.com/Financial-Times/upp-exports-rw-s3/service"
-	aws2 "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	s3 "github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/smithy-go/logging"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	cli "github.com/jawher/mow.cli"
@@ -131,39 +127,6 @@ func runServer(port, conceptResourcePath, contentResourcePath, genericStoreResou
 		},
 	}
 
-	logger := logging.LoggerFunc(func(classification logging.Classification, format string, v ...interface{}) {
-		log.WithField("process", "s3").Info(v...)
-	})
-	// Assume role
-	aws2ConfigAssumeRole, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithLogger(logger),
-		config.WithHTTPClient(hc), config.WithRegion(awsRegion), config.WithClientLogMode(aws2.LogRetries|aws2.LogRequest|aws2.LogRequestWithBody|aws2.LogResponseWithBody))
-	if err != nil {
-		log.Fatalf("Failed to create AWS config: %v", err)
-	}
-
-	stsSvc := sts.NewFromConfig(aws2ConfigAssumeRole)
-	provider := stscreds.NewAssumeRoleProvider(stsSvc, "arn:aws:iam::070529446553:role/cm-foreign-archive-exporter-role")
-	aws2ConfigAssumeRole.Credentials = aws2.NewCredentialsCache(provider)
-	//_, err = aws2ConfigAssumeRole.Credentials.Retrieve(context.TODO())
-	//if err != nil {
-	//	log.WithError(err).Error("Error in Credentials.Retrieve")
-	//}
-	//s3ClientAssumeRole := s3v2.NewFromConfig(aws2ConfigAssumeRole)
-
-	stsSvc2 := sts.NewFromConfig(aws2ConfigAssumeRole)
-	provider2 := stscreds.NewAssumeRoleProvider(stsSvc2, "arn:aws:iam::469211898354:role/destination-foreign-exporter-role")
-	aws2ConfigAssumeRole.Credentials = aws2.NewCredentialsCache(provider2)
-
-	s3ClientAssumeRole := s3v2.NewFromConfig(aws2ConfigAssumeRole)
-	// Test S3 Client Assume Role
-	s3v2c := service.NewS3Client2(s3ClientAssumeRole, "destination-test-foreign-archive-exporter")
-	testc := []byte("test content")
-	err = s3v2c.Write("test-file", &testc, "text/plain", "vs-txt-01")
-	if err != nil {
-		log.WithError(err).Error("Error write to bucket.")
-	}
-
 	aws2Config, err := config.LoadDefaultConfig(context.TODO(), config.WithHTTPClient(hc), config.WithRegion(awsRegion))
 	if err != nil {
 		log.Fatalf("Failed to create AWS config: %v", err)
@@ -194,6 +157,7 @@ func runServer(port, conceptResourcePath, contentResourcePath, genericStoreResou
 	wh := service.NewWriterHandler(w, r)
 	rh := service.NewReaderHandler(r)
 	ph := service.NewPresignerHandler(presigner)
+	fh := service.NewForeignerHandler(hc)
 
 	servicesRouter := mux.NewRouter()
 
@@ -219,10 +183,15 @@ func runServer(port, conceptResourcePath, contentResourcePath, genericStoreResou
 		"GET": http.HandlerFunc(ph.HandlePresignURL),
 	}
 
+	foreignerMethodHandler := &handlers.MethodHandler{
+		"PUT": http.HandlerFunc(fh.HandleForeignerBucketWrite),
+	}
+
 	service.Handlers(servicesRouter, contentMethodHandler, contentResourcePath, "/{uuid}")
 	service.Handlers(servicesRouter, conceptMethodHandler, conceptResourcePath, "/{fileName}")
 	service.Handlers(servicesRouter, genericStoreMethodHandler, genericStoreResourcePath, "/{key}")
 	service.Handlers(servicesRouter, presignerMethodHandler, "presign", "/{key}")
+	service.Handlers(servicesRouter, foreignerMethodHandler, "foreign", "/")
 	service.AddAdminHandlers(servicesRouter, svc, bucketName, appSystemCode)
 
 	log.Infof("listening on %v", port)
