@@ -143,3 +143,11 @@ For this to work you need to make sure that your AWS credentials has the followi
 }
 ```
 
+#### Write to any bucket
+
+You could assume any role and write to s3 bucket your role have access to.
+
+```
+curl -H 'Content-Type: application/zip' -X PUT -d @path/to/data.zip http://localhost:8080/foreign/?region=eu-west-1&bucket=destination-test-foreign-archive-exporter&role=arn:aws:iam::070529446553:role/cm-foreign-archive-exporter-role&role=arn:aws:iam::469211898354:role/destination-foreign-exporter-role&key=test-archive.zip
+```
+You could assume as many roles as you want in succession as in the example above.
