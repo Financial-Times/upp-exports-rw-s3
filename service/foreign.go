@@ -39,7 +39,7 @@ func (f *Foreigner) UploadToBucket(key string, b *[]byte, ct string, tid string)
 }
 
 func (f *Foreigner) loadS3Client() error {
-	cfg, err := f.loadMultipleRolesAwsConfigurqtion()
+	cfg, err := f.loadMultipleRolesAwsConfiguration()
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func (f *Foreigner) loadS3Client() error {
 }
 
 // Assume every next role
-func (f *Foreigner) loadMultipleRolesAwsConfigurqtion() (*aws.Config, error) {
+func (f *Foreigner) loadMultipleRolesAwsConfiguration() (*aws.Config, error) {
 	var cfg *aws.Config
 	for _, role := range f.roles {
 		var err error
@@ -103,7 +103,7 @@ func (h *ForeignerHandler) HandleForeignerBucketWrite(rw http.ResponseWriter, r 
 	}
 	tid := transactionid.GetTransactionIDFromRequest(r)
 
-	if err := foreigner.UploadToBucket(key, &bs, ct, tid); err != nil {
+	if err = foreigner.UploadToBucket(key, &bs, ct, tid); err != nil {
 		foreignerServiceUnavailable(bucket, err, rw)
 		return
 	}

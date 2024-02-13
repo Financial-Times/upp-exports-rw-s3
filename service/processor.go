@@ -383,7 +383,7 @@ func (w *WriterHandler) HandleGenericStoreWrite(rw http.ResponseWriter, r *http.
 	rw.Header().Set("Content-Type", ct)
 
 	var err error
-	bs, err := ioutil.ReadAll(r.Body)
+	bs, err := io.ReadAll(r.Body)
 	if err != nil {
 		writerStatusInternalServerError(key, err, rw)
 		return
