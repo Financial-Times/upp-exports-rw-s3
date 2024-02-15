@@ -2,18 +2,19 @@ package service
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strings"
+
 	transactionid "github.com/Financial-Times/transactionid-utils-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	log "github.com/sirupsen/logrus"
-	"fmt"
-	"regexp"
 )
 
 var uuidRegex = regexp.MustCompile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -28,16 +29,17 @@ type KafkaMsg struct {
 type Reader interface {
 	GetContent(uuid, publishedDate string) (bool, io.ReadCloser, *string, error)
 	GetConcept(fileName string) (bool, io.ReadCloser, *string, error)
+	GetGenericStore(key string) (bool, io.ReadCloser, *string, error)
 	GetPublishDateForUUID(uuid string) (string, bool, error)
 }
 
 func NewS3Reader(svc s3iface.S3API, bucketName string, bucketContentPrefix string, bucketConceptPrefix string, workers int16) Reader {
 	return &S3Reader{
-		svc:          svc,
-		bucketName:   bucketName,
+		svc:                 svc,
+		bucketName:          bucketName,
 		bucketContentPrefix: bucketContentPrefix,
 		bucketConceptPrefix: bucketConceptPrefix,
-		workers:      workers,
+		workers:             workers,
 	}
 }
 
@@ -57,11 +59,14 @@ func (r *S3Reader) GetContent(uuid, publishedDate string) (bool, io.ReadCloser, 
 	s3ObjectKey := getContentKey(r.bucketContentPrefix, publishedDate, uuid)
 	return r.Get(s3ObjectKey)
 }
+func (r *S3Reader) GetGenericStore(key string) (bool, io.ReadCloser, *string, error) {
+	return r.Get(key)
+}
 
 func (r *S3Reader) Get(s3ObjectKey string) (bool, io.ReadCloser, *string, error) {
 	s3Param := &s3.GetObjectInput{
 		Bucket: aws.String(r.bucketName), // Required
-		Key:    aws.String(s3ObjectKey), // Required
+		Key:    aws.String(s3ObjectKey),  // Required
 	}
 
 	resp, err := r.svc.GetObject(s3Param)
@@ -108,7 +113,7 @@ func (r *S3Reader) GetPublishDateForUUID(uuid string) (string, bool, error) {
 	return "", false, nil
 }
 
-func (r *S3Reader) listObjects(keys chan <- *string, uuid string) error {
+func (r *S3Reader) listObjects(keys chan<- *string, uuid string) error {
 	return r.svc.ListObjectsV2Pages(r.getListObjectsV2Input(uuid),
 		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
 			for _, o := range page.Contents {
@@ -117,7 +122,7 @@ func (r *S3Reader) listObjects(keys chan <- *string, uuid string) error {
 					if r.bucketContentPrefix == "" {
 						key = *o.Key
 					} else {
-						k := strings.SplitAfter(*o.Key, r.bucketContentPrefix + "/")
+						k := strings.SplitAfter(*o.Key, r.bucketContentPrefix+"/")
 						key = k[1]
 					}
 					uuid := strings.TrimSuffix(key, ".json")
@@ -136,8 +141,10 @@ func (r *S3Reader) listObjects(keys chan <- *string, uuid string) error {
 type Writer interface {
 	WriteConcept(fileName string, b *[]byte, ct string, tid string) error
 	WriteContent(uuid, date string, b *[]byte, contentType string, transactionId string) error
+	WriteGenericStore(key string, b *[]byte, contentType string, transactionId string) error
 	DeleteContent(uuid, date string) error
 	DeleteConcept(fileName string) error
+	DeleteGenericStore(key string) error
 }
 
 type S3Writer struct {
@@ -149,8 +156,8 @@ type S3Writer struct {
 
 func NewS3Writer(svc s3iface.S3API, bucketName string, bucketContentPrefix string, bucketConceptPrefix string) Writer {
 	return &S3Writer{
-		svc:          svc,
-		bucketName:   bucketName,
+		svc:                 svc,
+		bucketName:          bucketName,
 		bucketContentPrefix: bucketContentPrefix,
 		bucketConceptPrefix: bucketConceptPrefix,
 	}
@@ -167,7 +174,7 @@ func getContentKey(bucketPrefix, date, uuid string) string {
 func (w *S3Writer) Delete(s3ObjectKey string) error {
 	params := &s3.DeleteObjectInput{
 		Bucket: aws.String(w.bucketName), // Required
-		Key:    aws.String(s3ObjectKey), // Required
+		Key:    aws.String(s3ObjectKey),  // Required
 	}
 
 	if resp, err := w.svc.DeleteObject(params); err != nil {
@@ -187,6 +194,10 @@ func (w *S3Writer) DeleteContent(uuid, date string) error {
 	return w.Delete(s3ObjectKey)
 }
 
+func (w *S3Writer) DeleteGenericStore(key string) error {
+	return w.Delete(key)
+}
+
 func (w *S3Writer) WriteConcept(fileName string, b *[]byte, ct string, tid string) error {
 	s3Objectkey := getConceptKey(w.bucketConceptPrefix, fileName)
 	return w.Write(s3Objectkey, b, ct, tid)
@@ -195,6 +206,10 @@ func (w *S3Writer) WriteConcept(fileName string, b *[]byte, ct string, tid strin
 func (w *S3Writer) WriteContent(uuid, date string, b *[]byte, ct string, tid string) error {
 	s3Objectkey := getContentKey(w.bucketContentPrefix, date, uuid)
 	return w.Write(s3Objectkey, b, ct, tid)
+}
+
+func (w *S3Writer) WriteGenericStore(key string, b *[]byte, ct string, tid string) error {
+	return w.Write(key, b, ct, tid)
 }
 
 func (w *S3Writer) Write(s3ObjectKey string, b *[]byte, ct string, tid string) error {
@@ -293,6 +308,16 @@ func respondWithBadRequest(rw http.ResponseWriter, message string) {
 	rw.Write([]byte(fmt.Sprintf("{\"message\":\"%s\"}", message)))
 }
 
+func (rh *ReaderHandler) HandleGenericStoreGet(rw http.ResponseWriter, r *http.Request) {
+	key := getFileName(r.URL.Path)
+	f, i, ct, err := rh.reader.GetGenericStore(key)
+	if err != nil {
+		readerServiceUnavailable(r.URL.RequestURI(), err, rw)
+		return
+	}
+	handleGet(f, rw, i, ct)
+}
+
 func (rh *ReaderHandler) HandleContentGet(rw http.ResponseWriter, r *http.Request) {
 	uuid := getFileName(r.URL.Path)
 	if isUuidValid := uuidRegex.MatchString(uuid); !isUuidValid {
@@ -350,6 +375,26 @@ func handleGet(f bool, rw http.ResponseWriter, i io.ReadCloser, ct *string) {
 
 	rw.WriteHeader(http.StatusOK)
 	rw.Write(b)
+}
+
+func (w *WriterHandler) HandleGenericStoreWrite(rw http.ResponseWriter, r *http.Request) {
+	key := getFileName(r.URL.Path)
+	ct := r.Header.Get("Content-Type")
+	rw.Header().Set("Content-Type", ct)
+
+	var err error
+	bs, err := io.ReadAll(r.Body)
+	if err != nil {
+		writerStatusInternalServerError(key, err, rw)
+		return
+	}
+
+	tid := transactionid.GetTransactionIDFromRequest(r)
+	err = w.writer.WriteGenericStore(key, &bs, ct, tid)
+	if err != nil {
+		writerServiceUnavailable("", err, rw)
+		return
+	}
 }
 
 func (w *WriterHandler) HandleContentWrite(rw http.ResponseWriter, r *http.Request) {
@@ -412,6 +457,33 @@ func writerStatusInternalServerError(uuid string, err error, rw http.ResponseWri
 	rw.Write([]byte("{\"message\":\"Unknown internal error\"}"))
 }
 
+func (w *WriterHandler) HandleGenericStoreDelete(rw http.ResponseWriter, r *http.Request) {
+	key := getFileName(r.URL.Path)
+
+	found, _, _, err := w.reader.GetGenericStore(key)
+	if err != nil {
+		rw.Header().Set("Content-Type", "application/json")
+		writerServiceUnavailable(key, err, rw)
+		return
+	}
+
+	if !found {
+		rw.Header().Set("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusNotFound)
+		rw.Write([]byte("{\"message\":\"Item not found\"}"))
+		return
+	}
+
+	if err := w.writer.DeleteGenericStore(key); err != nil {
+		rw.Header().Set("Content-Type", "application/json")
+		writerServiceUnavailable(key, err, rw)
+		return
+	}
+
+	log.WithField("key", key).Info("Delete succesful")
+	rw.WriteHeader(http.StatusNoContent)
+}
+
 func (w *WriterHandler) HandleContentDelete(rw http.ResponseWriter, r *http.Request) {
 	uuid := getFileName(r.URL.Path)
 	if isUuidValid := uuidRegex.MatchString(uuid); !isUuidValid {
@@ -453,7 +525,7 @@ type ReaderHandler struct {
 
 func getFileName(path string) string {
 	parts := strings.Split(path, "/")
-	return parts[len(parts) - 1]
+	return parts[len(parts)-1]
 }
 
 func respondServiceUnavailable(err error, rw http.ResponseWriter) {

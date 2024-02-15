@@ -15,4 +15,7 @@ content:
   path: "content"
 concept:
   path: "concept"
+presignTTL:
+  seconds: 259200
 serviceAccountName: eksctl-upp-exports-rw-s3-serviceaccount
+  

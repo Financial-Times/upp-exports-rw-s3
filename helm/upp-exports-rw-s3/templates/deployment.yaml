@@ -62,6 +62,8 @@ spec:
           value: "{{ .Values.content.path }}"
         - name: CONCEPT_RESOURCE_PATH
           value: "{{ .Values.concept.path }}"
+        - name: PRESIGN_TTL
+          value: "{{ .Values.presignTTL.seconds }}"
         ports:
         - containerPort: 8080
         livenessProbe:

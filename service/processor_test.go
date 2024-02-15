@@ -2,27 +2,28 @@ package service
 
 import (
 	"errors"
-	transactionid "github.com/Financial-Times/transactionid-utils-go"
-	log "github.com/sirupsen/logrus"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	"github.com/stretchr/testify/assert"
+	"fmt"
 	"io/ioutil"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
-	"fmt"
+
+	transactionid "github.com/Financial-Times/transactionid-utils-go"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
-	expectedUUID = "123e4567-e89b-12d3-a456-426655440000"
-	expectedContentType = "content/type"
+	expectedUUID          = "123e4567-e89b-12d3-a456-426655440000"
+	expectedContentType   = "content/type"
 	expectedTransactionId = "tid_0123456789"
-	validUuid = "000528b0-9df9-11e3-95fe-00144feab7de"
+	validUuid             = "000528b0-9df9-11e3-95fe-00144feab7de"
 )
 
 type mockS3Client struct {
